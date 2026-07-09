@@ -1,0 +1,17 @@
+{
+  "name": "pulse-commerce",
+  "version": "1.0.0",
+  "description": "Pulse Commerce NoSQL Polyglot Persistence final project",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "seed": "node seed.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "mongodb": "^6.8.0",
+    "neo4j-driver": "^5.21.0",
+    "redis": "^4.6.14"
+  }
+}

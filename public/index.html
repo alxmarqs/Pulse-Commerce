@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pulse Commerce - E-commerce Social & Gamificado</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Vis.js for Graph Network -->
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <!-- Custom Style Sheet -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Glow Background Effects -->
+    <div class="glow-bg">
+        <div class="glow-circle cyan"></div>
+        <div class="glow-circle purple"></div>
+    </div>
+
+    <!-- Header / Navigation -->
+    <header class="app-header">
+        <div class="header-logo">
+            <i class="fa-solid fa-bolt pulse-logo-icon"></i>
+            <h1>PULSE<span>COMMERCE</span></h1>
+            <span class="badge-polyglot">Persistência Poliglota NoSQL</span>
+        </div>
+        <nav class="header-nav">
+            <button class="nav-tab active" data-tab="store-tab">
+                <i class="fa-solid fa-store"></i> Loja
+            </button>
+            <button class="nav-tab" data-tab="social-tab">
+                <i class="fa-solid fa-share-nodes"></i> Rede Social & Feed
+            </button>
+            <button class="nav-tab" data-tab="leaderboard-tab">
+                <i class="fa-solid fa-trophy"></i> Classificação
+            </button>
+            <button class="nav-tab" data-tab="diagnostics-tab">
+                <i class="fa-solid fa-terminal"></i> Console NoSQL
+            </button>
+            <button class="nav-tab" data-tab="admin-tab">
+                <i class="fa-solid fa-sliders"></i> Painel Admin
+            </button>
+        </nav>
+        <div class="user-selector-container">
+            <label for="active-user-select"><i class="fa-solid fa-user-astronaut"></i> Simular Usuário:</label>
+            <select id="active-user-select" class="styled-select">
+                <!-- Dynamically populated -->
+            </select>
+            <button class="cart-toggle-btn" id="cart-toggle">
+                <i class="fa-solid fa-shopping-cart"></i>
+                <span class="cart-count" id="cart-badge-count">0</span>
+            </button>
+        </div>
+    </header>
+
+    <main class="app-main">
+        <!-- TAB 1: STORE / LOJA (MongoDB) -->
+        <section class="tab-content active" id="store-tab">
+            <div class="section-header">
+                <h2>Catálogo de Produtos <span class="db-source-tag mongo">MongoDB Documental</span></h2>
+                <p>Os produtos e suas especificações técnicas dinâmicas estão armazenados como documentos JSON flexíveis.</p>
+            </div>
+            
+            <div class="products-grid" id="products-container">
+                <!-- Dynamically populated with products -->
+            </div>
+        </section>
+
+        <!-- TAB 2: SOCIAL & FEED (Neo4j & MongoDB) -->
+        <section class="tab-content" id="social-tab">
+            <div class="social-layout">
+                <!-- Left Column: Activity Feed (MongoDB) -->
+                <div class="social-feed-container glass">
+                    <div class="section-header border-bottom">
+                        <h3><i class="fa-solid fa-rss text-orange"></i> Atividades Recentes <span class="db-source-tag mongo">MongoDB</span></h3>
+                        <p>Feed social de compras e recomendações.</p>
+                    </div>
+                    <div class="activity-feed" id="activities-container">
+                        <!-- Dynamically populated with feed cards -->
+                    </div>
+                </div>
+
+                <!-- Right Column: Graph Visualizer (Neo4j) -->
+                <div class="social-graph-container glass">
+                    <div class="section-header border-bottom">
+                        <h3><i class="fa-solid fa-circle-nodes text-green"></i> Rede de Influência <span class="db-source-tag neo4j">Neo4j Grafos</span></h3>
+                        <p>Grafo conectando Usuários (verde) e Produtos (azul) por relações de AMIZADE, COMPRA e RECOMENDAÇÃO.</p>
+                    </div>
+                    <div class="graph-legend">
+                        <span class="legend-item"><i class="fa-solid fa-user-astronaut" style="color: var(--green); font-size: 1rem; margin-right: 0.25rem;"></i> Usuário</span>
+                        <span class="legend-item"><i class="fa-solid fa-box-open" style="color: var(--cyan); font-size: 0.95rem; margin-right: 0.25rem;"></i> Produto</span>
+                        <span class="legend-item"><span class="color-dot friend-line"></span> Amizade</span>
+                        <span class="legend-item"><span class="color-dot bought-line"></span> Compra</span>
+                        <span class="legend-item"><span class="color-dot recommend-line"></span> Indicação</span>
+                    </div>
+                    <div class="graph-wrapper">
+                        <div id="social-graph-canvas"></div>
+                        <div class="graph-controls">
+                            <button class="glass-btn btn-sm" id="btn-refresh-graph">
+                                <i class="fa-solid fa-rotate-right"></i> Atualizar Grafo
+                            </button>
+                            <button class="glass-btn btn-sm" id="btn-add-friend-modal">
+                                <i class="fa-solid fa-user-plus"></i> Conectar Amigos
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: LEADERBOARD / CLASSIFICAÇÃO (Redis) -->
+        <section class="tab-content" id="leaderboard-tab">
+            <div class="leaderboard-layout">
+                <!-- Left: Leaderboard Podium and List -->
+                <div class="leaderboard-main-panel glass" style="padding: 2rem; display: flex; flex-direction: column; gap: 2rem; flex-grow: 1;">
+                    <div class="section-header border-bottom" style="margin-bottom: 0;">
+                        <h3><i class="fa-solid fa-trophy text-yellow"></i> Classificação de Fidelidade <span class="db-source-tag redis">Redis Sorted Set</span></h3>
+                        <p>O ranking de pontos dos usuários do Pulse Commerce é mantido em memória no Redis de forma ultra-rápida.</p>
+                    </div>
+
+                    <!-- Top 3 Podium (Dynamic) -->
+                    <div class="podium-container" id="leaderboard-podium">
+                        <!-- Populate dynamically: Rank 2, Rank 1, Rank 3 -->
+                    </div>
+
+                    <!-- Remaining Table/List (Ranks 4+) -->
+                    <div class="leaderboard-table-wrapper" style="border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; background: rgba(0,0,0,0.15);">
+                        <table class="leaderboard-table" style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr>
+                                    <th class="leaderboard-th" style="width: 100px; text-align: center;">Posição</th>
+                                    <th class="leaderboard-th">Membro</th>
+                                    <th class="leaderboard-th">Username</th>
+                                    <th class="leaderboard-th" style="text-align: right; padding-right: 1.5rem;">Pulse Points</th>
+                                </tr>
+                            </thead>
+                            <tbody id="leaderboard-rows-container">
+                                <!-- Populated dynamically with ranks 4+ -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Right: Rules & Commands (Side Panel) -->
+                <div class="leaderboard-side-panel" style="width: 360px; display: flex; flex-direction: column; gap: 1.5rem; flex-shrink: 0;">
+                    <!-- Gamification Rules Card -->
+                    <div class="glass" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
+                        <div class="section-header border-bottom" style="margin-bottom: 0; padding-bottom: 0.75rem;">
+                            <h4 style="font-family: var(--font-heading); font-size: 1.1rem; font-weight: 700; color: white;"><i class="fa-solid fa-gift text-cyan"></i> Como pontuar?</h4>
+                        </div>
+                        <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.85rem; color: var(--text-muted);">
+                            <li style="display: flex; gap: 0.5rem; align-items: start;">
+                                <i class="fa-solid fa-cart-shopping text-cyan" style="margin-top: 0.2rem;"></i>
+                                <span><strong>Fazer uma Compra</strong>: Receba <strong>+50 Pulse Points</strong> automaticamente ao finalizar qualquer pedido.</span>
+                            </li>
+                            <li style="display: flex; gap: 0.5rem; align-items: start;">
+                                <i class="fa-solid fa-share-nodes text-green" style="margin-top: 0.2rem;"></i>
+                                <span><strong>Indicação Premiada</strong>: Se você indicar um produto para um amigo e ele comprar, você recebe <strong>+100 Pulse Points</strong>!</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- Redis Technical Card -->
+                    <div class="glass" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
+                        <div class="section-header border-bottom" style="margin-bottom: 0; padding-bottom: 0.75rem;">
+                            <h4 style="font-family: var(--font-heading); font-size: 1.1rem; font-weight: 700; color: white;"><i class="fa-solid fa-code text-primary"></i> Por que Redis?</h4>
+                        </div>
+                        <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">
+                            O ranking de pontuações necessita de leituras e escritas de alta performance com ordenação automática garantida.
+                        </p>
+                        <div style="background: rgba(0, 0, 0, 0.35); border: 1px solid var(--border-color); padding: 0.75rem; border-radius: 8px; font-family: monospace; font-size: 0.72rem; display: flex; flex-direction: column; gap: 0.4rem;">
+                            <span style="color: var(--text-dark);"># Adicionar/atualizar pontos:</span>
+                            <span style="color: var(--cyan);">ZINCRBY leaderboard 100 "alice"</span>
+                            <span style="color: var(--text-dark);"># Listar Top 10 ordenado:</span>
+                            <span style="color: var(--primary);">ZREVRANGE leaderboard 0 9 WITHSCORES</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 4: DIAGNOSTICS / NO SQL LOGS (Academic Tool) -->
+        <section class="tab-content" id="diagnostics-tab">
+            <div class="diagnostics-container glass">
+                <div class="diagnostics-header border-bottom">
+                    <div class="title-area">
+                        <h2><i class="fa-solid fa-terminal text-cyan"></i> Console de Consultas NoSQL</h2>
+                        <p>Acompanhe em tempo real as consultas executadas nos bancos MongoDB, Redis e Neo4j conforme interage com a plataforma.</p>
+                    </div>
+                    <div class="control-area">
+                        <button class="glass-btn" id="btn-clear-logs">
+                            <i class="fa-solid fa-trash-can"></i> Limpar Console
+                        </button>
+                        <div class="filter-toggles">
+                            <button class="filter-toggle active" data-db="MongoDB">MongoDB</button>
+                            <button class="filter-toggle active" data-db="Redis">Redis</button>
+                            <button class="filter-toggle active" data-db="Neo4j">Neo4j</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="console-body" id="console-logs-container">
+                    <div class="log-entry system">
+                        <span class="log-time">[SISTEMA]</span>
+                        <span class="log-db">System</span>
+                        <span class="log-message">Console NoSQL iniciado. Aguardando interações...</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 5: ADMIN / PAINEL ADMIN (MongoDB, Redis, Neo4j configuration) -->
+        <section class="tab-content" id="admin-tab">
+            <div class="social-layout">
+                <!-- Left Column: Add Product Form (MongoDB) -->
+                <div class="glass" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1.25rem;">
+                    <div class="section-header border-bottom">
+                        <h3><i class="fa-solid fa-box-open text-orange"></i> Cadastrar Produto <span class="db-source-tag mongo">MongoDB + Neo4j</span></h3>
+                        <p>Adicione novos itens ao catálogo com especificações dinâmicas livres.</p>
+                    </div>
+                    <form id="admin-product-form" class="admin-form" style="display: flex; flex-direction: column; gap: 1rem;">
+                        <div class="form-group">
+                            <label for="prod-id">ID Único do Produto (ex: prod_teclado_03):</label>
+                            <input type="text" id="prod-id" class="styled-select" placeholder="prod_nome_id" style="background: rgba(255,255,255,0.03);" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="prod-name">Nome do Produto:</label>
+                            <input type="text" id="prod-name" class="styled-select" placeholder="Ex: Monitor UltraWide 34" style="background: rgba(255,255,255,0.03);" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="prod-price">Preço (R$):</label>
+                            <input type="number" step="0.01" id="prod-price" class="styled-select" placeholder="Ex: 1599.90" style="background: rgba(255,255,255,0.03);" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="prod-category">Categoria:</label>
+                            <input type="text" id="prod-category" class="styled-select" placeholder="Ex: Monitores" style="background: rgba(255,255,255,0.03);" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="prod-image">URL da Imagem (Opcional):</label>
+                            <input type="url" id="prod-image" class="styled-select" placeholder="https://images.unsplash.com/..." style="background: rgba(255,255,255,0.03);">
+                        </div>
+                        <div class="form-group">
+                            <label for="prod-specs">Especificações Técnicas (JSON flexível):</label>
+                            <textarea id="prod-specs" class="styled-select" rows="4" style="background: rgba(255,255,255,0.03); height: 100px; font-family: monospace; resize: vertical;" placeholder='{&#10;  "tamanho": "34 polegadas",&#10;  "frequencia": "144Hz",&#10;  "hdr": true&#10;}' required></textarea>
+                        </div>
+                        <button type="submit" class="primary-btn btn-full">
+                            <i class="fa-solid fa-plus"></i> Cadastrar no Catálogo NoSQL
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Right Column: Add User Form & Simulator -->
+                <div style="display: flex; flex-direction: column; gap: 2rem;">
+                    <div class="glass" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1.25rem;">
+                        <div class="section-header border-bottom">
+                            <h3><i class="fa-solid fa-user-plus text-green"></i> Cadastrar Usuário <span class="db-source-tag neo4j">Neo4j</span> <span class="db-source-tag redis">Redis</span></h3>
+                            <p>Adicione novos consumidores na rede de grafos e inicialize a gamificação.</p>
+                        </div>
+                        <form id="admin-user-form" class="admin-form" style="display: flex; flex-direction: column; gap: 1rem;">
+                            <div class="form-group">
+                                <label for="user-id">Username / ID (ex: gabriel):</label>
+                                <input type="text" id="user-id" class="styled-select" placeholder="ex: gabriel" style="background: rgba(255,255,255,0.03);" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="user-name">Nome Completo:</label>
+                                <input type="text" id="user-name" class="styled-select" placeholder="Ex: Gabriel Barbosa" style="background: rgba(255,255,255,0.03);" required>
+                            </div>
+                            <button type="submit" class="primary-btn btn-full" style="background: linear-gradient(135deg, var(--green), var(--cyan));">
+                                <i class="fa-solid fa-user-plus"></i> Registrar Usuário NoSQL
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Live Activity Simulator -->
+                    <div class="glass" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1.25rem;">
+                        <div class="section-header border-bottom">
+                            <h3><i class="fa-solid fa-robot text-cyan"></i> Simulador de Atividade <span class="db-source-tag redis">Redis</span> <span class="db-source-tag neo4j">Neo4j</span> <span class="db-source-tag mongo">Mongo</span></h3>
+                            <p>Simule tráfego de e-commerce real (compras, indicações, amizades) a cada 5 segundos.</p>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 1rem;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.15); padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-color);">
+                                <span>Status: <strong id="sim-status" style="color: var(--text-dark);">INATIVO</strong></span>
+                                <span id="sim-indicator" class="color-dot" style="background-color: var(--text-dark); box-shadow: none;"></span>
+                            </div>
+                            <div id="sim-last-action" style="font-size: 0.8rem; min-height: 40px; color: var(--text-muted); background: rgba(0,0,0,0.2); padding: 0.5rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.02); display: flex; align-items: center; justify-content: center; text-align: center;">
+                                Nenhuma ação simulada ainda.
+                            </div>
+                            <button id="btn-toggle-sim" class="primary-btn btn-full" style="background: linear-gradient(135deg, var(--cyan), var(--primary));">
+                                <i class="fa-solid fa-play"></i> Iniciar Simulação Automática
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- SHOPPING CART SLIDE OVER (Redis) -->
+    <div class="cart-overlay" id="cart-overlay-bg"></div>
+    <aside class="cart-sidebar" id="cart-sidebar-panel">
+        <div class="cart-header">
+            <h3><i class="fa-solid fa-shopping-cart"></i> Seu Carrinho <span class="db-source-tag redis">Redis</span></h3>
+            <button class="close-btn" id="cart-close">&times;</button>
+        </div>
+        <div class="cart-items-container" id="cart-items-wrapper">
+            <!-- Dynamically populated with cart items -->
+        </div>
+        <div class="cart-footer">
+            <div class="cart-summary border-bottom">
+                <span>Total:</span>
+                <span class="cart-total-price" id="cart-total">R$ 0,00</span>
+            </div>
+            <div class="cart-checkout-actions">
+                <button class="primary-btn btn-full" id="btn-checkout">
+                    <i class="fa-solid fa-credit-card"></i> Finalizar Compra
+                </button>
+                <p class="cart-note text-center">A compra executará operações poliglotas coordenadas e distribuirá pontos.</p>
+            </div>
+        </div>
+    </aside>
+
+    <!-- RECOMMENDATION DIALOG MODAL -->
+    <div class="modal-overlay" id="recommend-modal">
+        <div class="modal-content glass">
+            <div class="modal-header border-bottom">
+                <h3><i class="fa-solid fa-paper-plane text-yellow"></i> Recomendar Produto</h3>
+                <button class="modal-close" id="recommend-modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Indique este produto para um amigo da sua rede. Se ele comprar, você receberá <strong>+100 Pulse Points</strong>!</p>
+                <div class="product-info-mini" id="recommend-product-info">
+                    <!-- Product details populated here -->
+                </div>
+                <div class="form-group">
+                    <label for="recommend-friend-select">Selecione o amigo:</label>
+                    <select id="recommend-friend-select" class="styled-select">
+                        <!-- Populated dynamic friends list -->
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer border-top">
+                <button class="glass-btn" id="btn-cancel-recommend">Cancelar</button>
+                <button class="primary-btn" id="btn-send-recommend">Enviar Recomendação</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CONNECT FRIENDS DIALOG MODAL -->
+    <div class="modal-overlay" id="friend-modal">
+        <div class="modal-content glass">
+            <div class="modal-header border-bottom">
+                <h3><i class="fa-solid fa-user-plus text-green"></i> Conectar Novos Amigos no Grafo</h3>
+                <button class="modal-close" id="friend-modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Crie um relacionamento bidirecional do tipo <code>[:FRIEND]</code> no Neo4j entre dois usuários do sistema.</p>
+                <div class="form-group">
+                    <label for="friend-user1">Usuário 1:</label>
+                    <select id="friend-user1" class="styled-select"></select>
+                </div>
+                <div class="form-group">
+                    <label for="friend-user2">Usuário 2:</label>
+                    <select id="friend-user2" class="styled-select"></select>
+                </div>
+            </div>
+            <div class="modal-footer border-top">
+                <button class="glass-btn" id="btn-cancel-friend">Cancelar</button>
+                <button class="primary-btn" id="btn-connect-friends">Criar Amizade (Neo4j)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATIONS -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Client-side Application Logic -->
+    <script src="app.js"></script>
+</body>
+</html>

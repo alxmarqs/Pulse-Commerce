@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:latest
+    container_name: pulse-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    restart: always
+
+  redis:
+    image: redis:alpine
+    container_name: pulse-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: always
+
+  neo4j:
+    image: neo4j:latest
+    container_name: pulse-neo4j
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    volumes:
+      - neo4j_data:/data
+    environment:
+      - NEO4J_AUTH=neo4j/pulsepassword
+    restart: always
+
+volumes:
+  mongo_data:
+  redis_data:
+  neo4j_data:

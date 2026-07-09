@@ -1,0 +1,23 @@
+# Dependency directories (Node.js)
+node_modules/
+package-lock.json
+
+# Python virtual envs and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+.streamlit/
+
+# OS metadata
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Local configuration
+.env
+.env.local
