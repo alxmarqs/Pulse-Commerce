@@ -5,8 +5,8 @@ Este repositório contém a implementação completa do **Pulse Commerce**, um p
 ---
 
 ## 🔗 Links de Acesso Online (Projeto Rodando na Web)
-* **🛍️ E-Commerce Principal (Express/Vis.js)**: [https://4ebda994d46298aa-191-11-33-173.serveousercontent.com](https://4ebda994d46298aa-191-11-33-173.serveousercontent.com)
-* **📊 Painel Streamlit (CRUD NoSQL & Autenticação)**: [https://171d59439e455307-191-11-33-173.serveousercontent.com](https://171d59439e455307-191-11-33-173.serveousercontent.com)
+* **🛍️ E-Commerce Principal (Express/Vis.js)**: [https://bf5321b4ebdb11fa-191-11-33-173.serveousercontent.com](https://bf5321b4ebdb11fa-191-11-33-173.serveousercontent.com)
+* **📊 Painel Streamlit (CRUD NoSQL & Autenticação)**: [https://f1a85253e4130322-191-11-33-173.serveousercontent.com](https://f1a85253e4130322-191-11-33-173.serveousercontent.com)
 
 *(Nota: Os links estão ativos e conectados de forma segura aos servidores e bancos de dados NoSQL do projeto).*
 
