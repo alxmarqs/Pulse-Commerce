@@ -61,8 +61,8 @@ if not st.session_state.logged_in:
         login_pass = st.text_input("Senha:", type="password", key="login_pass")
         
         if st.button("Entrar", key="btn_login", type="primary"):
-            if not login_id or not login_pass:
-                st.error("Por favor, preencha todos os campos.")
+            if not login_id:
+                st.error("Por favor, preencha o ID do Usuário.")
             else:
                 try:
                     user_data = run_cypher("MATCH (u:User {id: $id}) RETURN u.password AS password, u.name AS name", {"id": login_id})
@@ -70,7 +70,15 @@ if not st.session_state.logged_in:
                         stored_password = user_data[0].get("password")
                         stored_name = user_data[0].get("name")
                         
-                        if stored_password == login_pass:
+                        if stored_password is None:
+                            st.warning("⚠️ Usuário encontrado, mas sem senha cadastrada. Seu banco local não foi atualizado com o novo seed. Entre com a Senha em Branco ou crie uma conta.")
+                            if not login_pass:
+                                st.session_state.logged_in = True
+                                st.session_state.user_id = login_id
+                                st.session_state.user_name = stored_name
+                                st.success(f"Bem-vindo(a), {stored_name}!")
+                                st.rerun()
+                        elif stored_password == login_pass:
                             st.session_state.logged_in = True
                             st.session_state.user_id = login_id
                             st.session_state.user_name = stored_name
