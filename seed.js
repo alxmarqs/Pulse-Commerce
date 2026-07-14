@@ -262,7 +262,7 @@ async function seed() {
     console.log('Criando nós de Usuários no Neo4j...');
     for (const u of usersData) {
       await runCypher(
-        'CREATE (u:User {id: $id, name: $name})',
+        'CREATE (u:User {id: $id, name: $name, password: $id})',
         u
       );
     }

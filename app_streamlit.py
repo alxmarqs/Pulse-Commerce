@@ -42,6 +42,91 @@ def run_cypher(query, params=None):
         result = session.run(query, params or {})
         return [record.data() for record in result]
 
+# --- USER AUTHENTICATION STATE & LOGIC ---
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+if "user_id" not in st.session_state:
+    st.session_state.user_id = None
+if "user_name" not in st.session_state:
+    st.session_state.user_name = None
+
+# Authentication Interface if not logged in
+if not st.session_state.logged_in:
+    st.markdown("### 🔐 Autenticação NoSQL")
+    auth_tab1, auth_tab2 = st.tabs(["🔑 Entrar (Login)", "📝 Criar Conta (Sign Up)"])
+    
+    with auth_tab1:
+        st.write("Entre com suas credenciais do banco de dados Neo4j (ex: `alice` / `alice`, `bob` / `bob`).")
+        login_id = st.text_input("ID do Usuário:", key="login_id").lower().strip()
+        login_pass = st.text_input("Senha:", type="password", key="login_pass")
+        
+        if st.button("Entrar", key="btn_login", type="primary"):
+            if not login_id or not login_pass:
+                st.error("Por favor, preencha todos os campos.")
+            else:
+                try:
+                    user_data = run_cypher("MATCH (u:User {id: $id}) RETURN u.password AS password, u.name AS name", {"id": login_id})
+                    if user_data:
+                        stored_password = user_data[0].get("password")
+                        stored_name = user_data[0].get("name")
+                        
+                        if stored_password == login_pass:
+                            st.session_state.logged_in = True
+                            st.session_state.user_id = login_id
+                            st.session_state.user_name = stored_name
+                            st.success(f"Bem-vindo(a), {stored_name}!")
+                            st.rerun()
+                        else:
+                            st.error("Senha incorreta.")
+                    else:
+                        st.error("Usuário não encontrado.")
+                except Exception as ex:
+                    st.error(f"Erro ao autenticar no Neo4j: {ex}")
+                    
+    with auth_tab2:
+        st.write("Cadastre uma nova conta. Os dados serão propagados no Neo4j, Redis e MongoDB.")
+        new_id = st.text_input("ID do Usuário (minúsculo, sem espaços):", key="new_id").lower().strip()
+        new_name = st.text_input("Nome Completo:", key="new_name")
+        new_pass = st.text_input("Senha:", type="password", key="new_pass")
+        confirm_pass = st.text_input("Confirmar Senha:", type="password", key="confirm_pass")
+        
+        if st.button("Criar Conta & Inicializar", key="btn_register"):
+            if not new_id or not new_name or not new_pass:
+                st.error("Todos os campos são obrigatórios.")
+            elif new_pass != confirm_pass:
+                st.error("As senhas não coincidem.")
+            else:
+                try:
+                    existing = run_cypher("MATCH (u:User {id: $id}) RETURN u.id AS id", {"id": new_id})
+                    if existing:
+                        st.error("Este ID de usuário já existe.")
+                    else:
+                        # 1. Create User Node with password in Neo4j
+                        run_cypher("CREATE (u:User {id: $id, name: $name, password: $password})", {"id": new_id, "name": new_name, "password": new_pass})
+                        # 2. Add score 0 in Redis leaderboard
+                        r_client.zadd("leaderboard", {new_id: 0})
+                        # 3. Log user registration activity in MongoDB
+                        mongo_db["activities"].insert_one({
+                            "timestamp": datetime.utcnow().isoformat(),
+                            "userId": new_id,
+                            "userName": new_name,
+                            "type": "user_registered",
+                            "description": f"Novo usuário '{new_name}' (@{new_id}) se cadastrou no sistema!"
+                        })
+                        st.success("Conta criada! Vá para a aba 'Entrar' e faça login.")
+                except Exception as ex:
+                    st.error(f"Erro ao criar conta: {ex}")
+                    
+    st.stop()  # Interrompe a renderização do restante do painel
+
+# If logged in, display session status and logout button in sidebar
+st.sidebar.markdown(f"### 👤 Usuário Ativo\n**{st.session_state.user_name}** (`@{st.session_state.user_id}`)")
+if st.sidebar.button("🚪 Sair (Logout)", use_container_width=True):
+    st.session_state.logged_in = False
+    st.session_state.user_id = None
+    st.session_state.user_name = None
+    st.rerun()
+
 # --- NAVIGATION TABS ---
 tab_store, tab_crud, tab_analytics = st.tabs([
     "🛒 Loja & Checkout Poliglota (Funcionalidade Principal)",
@@ -55,15 +140,9 @@ tab_store, tab_crud, tab_analytics = st.tabs([
 with tab_store:
     st.header("🛍️ Catálogo de Produtos e Checkout Poliglota")
     
-    # 1. Select simulated user
-    try:
-        users = run_cypher("MATCH (u:User) RETURN u.id AS id, u.name AS name ORDER BY u.name")
-        user_options = {u["name"]: u["id"] for u in users}
-    except Exception:
-        user_options = {"Alice Silva": "alice", "Bob Souza": "bob"}
-        
-    selected_user_name = st.selectbox("Simular Usuário Ativo:", list(user_options.keys()))
-    active_user_id = user_options[selected_user_name]
+    active_user_id = st.session_state.user_id
+    selected_user_name = st.session_state.user_name
+    st.markdown(f"Logado como: **{selected_user_name}** (`@{active_user_id}`)")
     
     # 2. Track visit in Redis HyperLogLog (Probabilistic Structure)
     try:
