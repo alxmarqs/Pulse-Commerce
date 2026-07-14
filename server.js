@@ -533,6 +533,55 @@ app.post('/api/social/friend', async (req, res) => {
   }
 });
 
+// 7. PROBABILISTIC DATA STRUCTURES (Redis HyperLogLog)
+// Register a page visit (PFADD)
+app.post('/api/analytics/visit', async (req, res) => {
+  const { userId } = req.body;
+  if (!userId) {
+    return res.status(400).json({ error: 'Missing userId' });
+  }
+
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const key = `unique_visitors:${today}`;
+
+    const startAdd = Date.now();
+    const isNew = await redisDb.pfAdd(key, userId);
+    const addDuration = Date.now() - startAdd;
+
+    const startCount = Date.now();
+    const count = await redisDb.pfCount(key);
+    const countDuration = Date.now() - startCount;
+
+    // Log the commands in the SSE log stream
+    broadcastLog('Redis', `PFADD ${key} "${userId}" -> Result: ${isNew === 1 ? 'New User Counted' : 'User Already Exists'}`, addDuration);
+    broadcastLog('Redis', `PFCOUNT ${key} -> Estimated Cardinality: ${count}`, countDuration);
+
+    res.json({ success: true, count, isNew: isNew === 1 });
+  } catch (error) {
+    console.error('Error logging visit in Redis HyperLogLog:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get current unique visitors count (PFCOUNT)
+app.get('/api/analytics/unique-visitors', async (req, res) => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const key = `unique_visitors:${today}`;
+    
+    const start = Date.now();
+    const count = await redisDb.pfCount(key);
+    const duration = Date.now() - start;
+
+    broadcastLog('Redis', `PFCOUNT ${key} -> Estimated Cardinality: ${count}`, duration);
+    res.json({ count });
+  } catch (error) {
+    console.error('Error fetching cardinality from Redis HyperLogLog:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // 7. ACTIVITIES (MongoDB)
 app.get('/api/activities', async (req, res) => {
   try {

@@ -20,6 +20,7 @@ const cartItemsWrapper = document.getElementById('cart-items-wrapper');
 const cartTotal = document.getElementById('cart-total');
 const cartBadge = document.getElementById('cart-badge-count');
 const btnCheckout = document.getElementById('btn-checkout');
+const uniqueVisitorsCount = document.getElementById('unique-visitors-count');
 
 // Modals
 const recommendModal = document.getElementById('recommend-modal');
@@ -206,6 +207,9 @@ async function loadUsers() {
         // Fetch cart for current user
         loadCart();
 
+        // Track initial user visit (Redis HyperLogLog)
+        trackVisit(currentUserId);
+
         // Add change listener to switch active user
         userSelect.addEventListener('change', (e) => {
             currentUserId = e.target.value;
@@ -214,6 +218,9 @@ async function loadUsers() {
             // Reload user specific data
             loadCart();
             loadProducts();
+
+            // Track visit on switch (Redis HyperLogLog)
+            trackVisit(currentUserId);
             
             // If active tab is leaderboard or social, refresh
             const activeTab = document.querySelector('.nav-tab.active').getAttribute('data-tab');
@@ -226,6 +233,24 @@ async function loadUsers() {
     } catch (err) {
         console.error('Error loading users:', err);
         showToast('Erro ao carregar usuários.', 'error');
+    }
+}
+
+// Track user visit using Redis HyperLogLog (Probabilistic Structure)
+async function trackVisit(userId) {
+    if (!userId) return;
+    try {
+        const response = await fetch('/api/analytics/visit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId })
+        });
+        const data = await response.json();
+        if (data.success && uniqueVisitorsCount) {
+            uniqueVisitorsCount.textContent = data.count;
+        }
+    } catch (err) {
+        console.error('Error tracking visit in HyperLogLog:', err);
     }
 }
 

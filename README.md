@@ -83,7 +83,17 @@ Tabela de pontos mantida em ordem decrescente de pontos em memória.
 4) "100"
 ```
 
-#### E. Nós e Relações do Grafo (Neo4j)
+#### E. Contador de Visitantes Únicos `unique_visitors:YYYY-MM-DD` (Redis HYPERLOGLOG - Estrutura Probabilística)
+Estrutura probabilística para estimar a quantidade de usuários únicos (cardinalidade) ativos diariamente, com uso de memória fixo extremamente reduzido (máximo de 12KB por dia) e margem de erro de apenas 0,81%.
+```bash
+# Redis PFADD unique_visitors:2026-07-14 "alice"
+(integer) 1   # Retorna 1 se o elemento foi adicionado, ou 0 se já existia no HLL
+
+# Redis PFCOUNT unique_visitors:2026-07-14
+(integer) 1   # Retorna o total estimado de visitantes únicos naquele dia
+```
+
+#### F. Nós e Relações do Grafo (Neo4j)
 * **Nós**:
   * `(:User {id: "alice", name: "Alice Silva"})`
   * `(:Product {id: "prod_phone_01", name: "Quantum Phone Z"})`

@@ -46,6 +46,11 @@
                 <i class="fa-solid fa-sliders"></i> Painel Admin
             </button>
         </nav>
+        <div class="unique-visitors-badge" style="display: flex; align-items: center; gap: 0.5rem; background: rgba(6,182,212,0.06); border: 1px solid rgba(6,182,212,0.15); padding: 0.4rem 0.8rem; border-radius: 10px; font-size: 0.8rem; color: #a5f3fc; font-weight: 600;" title="Cardinalidade estimada via Redis HyperLogLog (PFADD/PFCOUNT) com consumo de memória de no máximo 12KB.">
+            <i class="fa-solid fa-users" style="color: var(--cyan);"></i>
+            <span>Visitantes Hoje: <strong id="unique-visitors-count">0</strong></span>
+            <span class="db-source-tag redis" style="font-size: 0.55rem; padding: 0.1rem 0.3rem; margin-left: 0.2rem;">HLL</span>
+        </div>
         <div class="user-selector-container">
             <label for="active-user-select"><i class="fa-solid fa-user-astronaut"></i> Simular Usuário:</label>
             <select id="active-user-select" class="styled-select">

@@ -65,6 +65,16 @@ with tab_store:
     selected_user_name = st.selectbox("Simular Usuário Ativo:", list(user_options.keys()))
     active_user_id = user_options[selected_user_name]
     
+    # 2. Track visit in Redis HyperLogLog (Probabilistic Structure)
+    try:
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        hll_key = f"unique_visitors:{today_str}"
+        r_client.pfadd(hll_key, active_user_id)
+        visitors_count = r_client.pfcount(hll_key)
+        st.sidebar.metric("👥 Visitantes Hoje (Redis HLL)", f"{visitors_count} únicos")
+    except Exception as ex:
+        st.sidebar.warning(f"Aviso HLL: {ex}")
+        
     col_products, col_cart = st.columns([2, 1])
     
     with col_products:
