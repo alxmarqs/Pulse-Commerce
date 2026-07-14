@@ -4,6 +4,12 @@ Este documento serve como um mapa de auditoria para o professor. Ele aponta os a
 
 ---
 
+## 🔗 Links de Acesso Online (Projeto Rodando na Web)
+* **🛍️ E-Commerce Principal (Express/Vis.js)**: [https://4ebda994d46298aa-191-11-33-173.serveousercontent.com](https://4ebda994d46298aa-191-11-33-173.serveousercontent.com)
+* **📊 Painel Streamlit (CRUD NoSQL & Autenticação)**: [https://171d59439e455307-191-11-33-173.serveousercontent.com](https://171d59439e455307-191-11-33-173.serveousercontent.com)
+
+---
+
 ## 1. Tema do Projeto e Funcionalidade de Maior Valor
 
 ### Requisitos:
