@@ -14,33 +14,33 @@ Este repositório contém a implementação completa do **Pulse Commerce**, um p
 
 ## 1. Tema do Projeto e Funcionalidade de Maior Valor
 
-### 1.1. Tema
-O **Pulse Commerce** é uma plataforma que integra a motivação competitiva (tabela de classificação/leaderboard) e social (recomendações e influência) ao processo de compras tradicional. Ele resolve a rigidez do modelo relacional ao delegar a cada tipo de banco NoSQL a tarefa em que ele possui o melhor desempenho teórico e prático.
+### 1.1. Tema do Projeto
+O **Pulse Commerce** é uma plataforma de e-commerce social e gamificada projetada sob o paradigma de **Persistência Poliglota**. O sistema integra motivação competitiva (ranking de fidelidade) e social (rede de amigos e indicações de compras) ao comércio eletrônico tradicional, direcionando cada tipo de dado ao banco NoSQL mais eficiente para o seu formato.
 
-### 1.2. Funcionalidade de Maior Valor: O Checkout Poliglota Coordenado
-A funcionalidade de maior valor para o sistema é o **Checkout de Compra com Motor de Influência**. Quando um usuário finaliza uma compra:
+### 1.2. Funcionalidade de Maior Valor: Checkout Poliglota Coordenado
+A funcionalidade mais importante e de maior valor para o sistema é o **Checkout com Motor de Influência**. Quando um usuário finaliza sua compra:
 1. O sistema lê as informações temporárias do seu carrinho em cache no **Redis** (`HGETALL`).
 2. Persiste e atualiza o histórico de compras e as conexões de rede social no **Neo4j** (criação de arestas `[:BOUGHT]`).
 3. Executa um algoritmo de **Social Influence** no **Neo4j**: caso um amigo desse usuário tenha feito uma indicação ativa (`[:RECOMMENDED]`) daquele produto para ele, a indicação é consumida e o amigo influenciador recebe **+100 Pulse Points** diretamente no sorted set do **Redis** (`ZINCRBY`).
 4. O próprio comprador recebe **+50 Pulse Points** por item comprado no **Redis** (`ZINCRBY`).
-5. Um documento histórico estruturado detalhando a compra (com data, valores, quantidades e produtos) é registrado no **MongoDB** na coleção `activities` para auditoria e feeds.
+5. Um documento histórico estruturado detalhando a compra (com data, valores, quantidades e produtos) é registrado no **MongoDB** na coleção `activities` para alimentar o feed de atividades e permitir auditorias analíticas futuras.
 6. O carrinho é limpo no **Redis** (`DEL`).
 
 Tudo isso ocorre de forma coordenada em uma única transação lógica de negócio na camada de aplicação.
 
 ---
 
-## 2. Modelagem de Dados NoSQL e Exemplos de Documentos
+## 2. Hierarquia de Informações, Agregações e Exemplos de Coleções
 
-### 2.1. Hierarquia de Informações e Agregações
-* **MongoDB (Documentos)**: Gerencia dados complexos, semi-estruturados e extensíveis. Contém o catálogo de produtos (onde cada item pode ter especificações variadas sem alterar um esquema) e o log social de atividades.
-* **Redis (Chave-Valor)**: Gerencia dados altamente voláteis e de acesso ultra-rápido. Armazena os itens de carrinhos ativos e o ranking de pontuações ordenado automaticamente em memória.
-* **Neo4j (Grafos)**: Mapeia as relações de rede social (quem é amigo de quem, quem comprou o quê, e quem indicou um produto para quem).
+### 2.1. Hierarquia de Informações e Agregações NoSQL
+* **MongoDB (Documental - Agregações Complexas e Histórico)**: Gerencia dados complexos, semi-estruturados e volumosos. Responsável pelo catálogo de produtos e pelo log de atividades sociais (auditoria).
+* **Redis (Chave-Valor - Sessão e Alta Frequência)**: Gerencia dados de baixa latência e leitura/escrita rápida. Controla os carrinhos de compras ativos dos usuários e as pontuações do ranking acumuladas em memória.
+* **Neo4j (Grafos - Relações Complexas)**: Mapeia conexões diretas e indiretas (amizades, compras efetuadas e indicações pendentes), permitindo buscas de vizinhança de alta performance sem a lentidão de múltiplos JOINs do modelo relacional.
 
-### 2.2. Exemplos de Estruturas e Documentos do Sistema
+### 2.2. Descrição e Exemplo de um Documento de cada Coleção/Banco
 
-#### A. Coleção `products` (MongoDB)
-Coleção documental flexível (*schemaless*) contendo metadados e atributos variados dependendo da categoria do item.
+#### A. Coleção `products` (MongoDB - Catálogo Documental)
+Armazena produtos de forma *schemaless* (sem esquema rígido), permitindo atributos flexíveis para cada categoria de produto dentro do mesmo campo `specs`.
 ```json
 {
   "_id": "prod_monitor_06",
@@ -57,8 +57,8 @@ Coleção documental flexível (*schemaless*) contendo metadados e atributos var
 }
 ```
 
-#### B. Coleção `activities` (MongoDB)
-Armazena o log histórico de ações com finalidade de auditoria e alimentação de feed de atividades dos usuários.
+#### B. Coleção `activities` (MongoDB - Logs de Eventos)
+Armazena os registros estruturados de todas as ações que acontecem na plataforma, alimentando o feed global.
 ```json
 {
   "_id": "649b80f12c9b4e05b38ef0e1",
@@ -73,95 +73,70 @@ Armazena o log histórico de ações com finalidade de auditoria e alimentação
 }
 ```
 
-#### C. Carrinho de Compras `cart:userId` (Redis HASH)
-Armazenamento chave-valor na estrutura de Hash. A chave do hash é `cart:<id_do_usuario>` e contém mapeamentos de `<id_do_produto> -> <quantidade>`.
-```bash
-# Redis HGETALL cart:charlie
-1) "prod_coffee_04"
-2) "2"
-```
-
-#### D. Leaderboard `leaderboard` (Redis SORTED SET)
-Tabela de pontos mantida em ordem decrescente de pontos em memória.
-```bash
-# Redis ZREVRANGE leaderboard 0 -1 WITHSCORES
-1) "alice"
-2) "150"
-3) "bob"
-4) "100"
-```
-
-#### E. Contador de Visitantes Únicos `unique_visitors:YYYY-MM-DD` (Redis HYPERLOGLOG - Estrutura Probabilística)
-Estrutura probabilística para estimar a quantidade de usuários únicos (cardinalidade) ativos diariamente, com uso de memória fixo extremamente reduzido (máximo de 12KB por dia) e margem de erro de apenas 0,81%.
-```bash
-# Redis PFADD unique_visitors:2026-07-14 "alice"
-(integer) 1   # Retorna 1 se o elemento foi adicionado, ou 0 se já existia no HLL
-
-# Redis PFCOUNT unique_visitors:2026-07-14
-(integer) 1   # Retorna o total estimado de visitantes únicos naquele dia
-```
-
-#### F. Nós e Relações do Grafo (Neo4j)
-* **Nós**:
-  * `(:User {id: "alice", name: "Alice Silva"})`
+#### C. Nós e Relações do Grafo (Neo4j - Rede Social)
+* **Nós (Entidades)**:
+  * `(:User {id: "alice", name: "Alice Silva", password: "alice"})`
   * `(:Product {id: "prod_phone_01", name: "Quantum Phone Z"})`
-* **Relacionamentos**:
-  * `(User {id: "alice"})-[:FRIEND]->(User {id: "bob"})` (Amizade)
-  * `(User {id: "charlie"})-[:BOUGHT]->(Product {id: "prod_keyboard_02"})` (Compra)
-  * `(User {id: "eve"})-[:RECOMMENDED {to: "alice"}]->(Product {id: "prod_headphone_05"})` (Indicação de compra pendente)
+* **Relacionamentos (Conexões)**:
+  * `(User {id: "alice"})-[:FRIEND]->(User {id: "bob"})` (Conexão de Amizade)
+  * `(User {id: "charlie"})-[:BOUGHT {quantity: 1}]->(Product {id: "prod_keyboard_02"})` (Histórico de Compra)
+  * `(User {id: "eve"})-[:RECOMMENDED {to: "alice"}]->(Product {id: "prod_headphone_05"})` (Indicação Pendente)
+
+*(Nota: Os exemplos do banco de dados Redis foram isolados na Seção 5 para cumprir rigorosamente o critério de separação de entregas).*
 
 ---
 
-## 3. Protótipo de Interface Streamlit (Python)
+## 3. Protótipo Streamlit, Banco Semente e Operações CRUD (MongoDB + Neo4j)
 
-Como parte dos requisitos acadêmicos, criamos o arquivo [app_streamlit.py](file:///c:/Users/contr/Dropbox/Particular/Pulse%20Commerce/app_streamlit.py), um protótipo de interface visual em Python que implementa a funcionalidade principal e um **CRUD completo (Create, Read, Update, Delete)** sobre a base do MongoDB.
+### 3.1. Protótipo Streamlit
+Desenvolvemos uma interface completa em Python utilizando **Streamlit** no arquivo [app_streamlit.py](file:///c:/Users/contr/Dropbox/Particular/Pulse%20Commerce/app_streamlit.py). Ela permite gerenciar e testar o sistema NoSQL de forma visual.
 
-### 3.1. Funcionalidades do Protótipo Streamlit
-1. **Loja & Checkout Poliglota**: Permite que você selecione o usuário ativo, visualize o catálogo, monte seu carrinho (gravado no Redis), veja os amigos que também compraram o item (consulta Neo4j) e finalize a compra executando a transação unificada.
-2. **CRUD de Produtos (MongoDB)**:
-   * **FIND (Read)**: Campo de busca para filtrar produtos por nome ou categoria e expandir para ler as especificações técnicas livres salvas no formato JSON.
-   * **INSERT (Create)**: Formulário completo para inserir novos produtos com especificações dinâmicas flexíveis (JSON) sincronizando a criação do nó correspondente no Neo4j.
-   * **UPDATE (Update)**: Permite selecionar qualquer produto e editar seu preço, categoria e especificações técnicas.
-   * **DELETE (Delete)**: Exclusão lógica e física do produto no MongoDB e remoção automática de suas referências no Neo4j.
-3. **Analytics & NoSQL Status**: Visualização direta do Leaderboard em tempo real direto do Redis e o log histórico de atividades do MongoDB.
+### 3.2. Banco Semente (População de Coleções)
+O script [seed.js](file:///c:/Users/contr/Dropbox/Particular/Pulse%20Commerce/seed.js) limpa todas as bases e insere registros iniciais estruturados para testes imediatos. Ele popula o catálogo com 11 produtos, 5 usuários iniciais com amizades cruzadas, compras históricas e carrinhos de compra ativos.
+
+### 3.3. Interface e Lógica do CRUD (MongoDB & Neo4j)
+A aba **"CRUD de Produtos"** do Streamlit implementa os comandos básicos de persistência sobre o catálogo de produtos de forma sincronizada:
+1. **FIND (Read/Buscar)**: Campo de busca que lê documentos filtrando por nome ou categoria usando regex no MongoDB:
+   * *Código*: `mongo_db["products"].find({"$or": [{"name": {"$regex": query}}, ...]})`
+2. **INSERT (Create/Criar)**: Formulário para cadastrar novos produtos. Insere o documento no MongoDB (`insert_one`) contendo atributos livres em JSON e cria o nó do produto correspondente no Neo4j (`CREATE (p:Product)`).
+3. **UPDATE (Update/Atualizar)**: Permite selecionar qualquer produto e editar seu preço, categoria e especificações técnicas usando o operador `$set` no MongoDB (`update_one`) e atualizando o nome do nó correspondente no Neo4j.
+4. **DELETE (Delete/Remover)**: Exclui o produto do catálogo no MongoDB (`delete_one`) e remove fisicamente o nó do produto e suas relações históricas no Neo4j (`DETACH DELETE`).
+
+### 3.4. Screenshots e Diretório de Prints
+Os prints de tela das operações de CRUD (Inserção, Busca, Atualização e Remoção) e da visualização das coleções populadas encontram-se salvos na pasta **`./screenshots`** da raiz do repositório para consulta e composição de relatórios adicionais.
 
 ---
 
 ## 4. MongoDB Aggregation Pipelines (Análise Avançada)
 
-Implementamos e testamos **dois pipelines de agregação complexos** para analisar os dados de vendas gerados no MongoDB. A execução dessas consultas pode ser feita rodando `node run_aggregations.js`.
+Implementamos e testamos **dois pipelines de agregação complexos** para extrair inteligência de negócios a partir dos dados consolidados no MongoDB. Eles podem ser executados via terminal rodando `node run_aggregations.js`.
 
 ### 4.1. Pipeline 1: Faturamento e Volume de Vendas por Categoria
-Este pipeline junta os logs de compras com a coleção de produtos e gera um relatório contendo a receita total, a quantidade de itens vendidos e os nomes de produtos distintos por categoria de e-commerce.
+Une os dados das coleções de atividades de compras com o catálogo de produtos para obter a receita, quantidade vendida e lista de produtos distintos por categoria.
 
 #### Código do Pipeline:
 ```javascript
 const pipeline1 = [
-  // 1. Filtrar apenas atividades que representam compras
-  { $match: { type: 'purchase' } },
-  // 2. Realizar junção (lookup) com a coleção de produtos para buscar a categoria
+  { $match: { type: 'purchase' } }, // Filtra apenas logs de compras
   {
-    $lookup: {
+    $lookup: { // JOIN com a coleção de produtos
       from: 'products',
       localField: 'productId',
       foreignField: '_id',
       as: 'productDetails'
     }
   },
-  // 3. Desestruturar a array resultante do lookup
-  { $unwind: '$productDetails' },
-  // 4. Agrupar por categoria e calcular somas e conjuntos de itens
+  { $unwind: '$productDetails' }, // Achata a array do lookup
   {
-    $group: {
+    $group: { // Agrupa por categoria calculando totais e conjuntos
       _id: '$productDetails.category',
       totalRevenue: { $sum: { $multiply: ['$quantity', '$price'] } },
       totalQuantitySold: { $sum: '$quantity' },
       productsSold: { $addToSet: '$productDetails.name' }
     }
   },
-  // 5. Projetar a saída limpa, arredondar valores e contar produtos únicos
   {
-    $project: {
+    $project: { // Formata campos, arredonda valores e conta itens únicos
       category: '$_id',
       totalRevenue: { $round: ['$totalRevenue', 2] },
       totalQuantitySold: 1,
@@ -170,12 +145,11 @@ const pipeline1 = [
       _id: 0
     }
   },
-  // 6. Ordenar por faturamento de forma decrescente
-  { $sort: { totalRevenue: -1 } }
+  { $sort: { totalRevenue: -1 } } // Ordena por maior faturamento
 ];
 ```
 
-#### Saída JSON Real da Agregação:
+#### Saída Real da Agregação (JSON):
 ```json
 [
   {
@@ -183,55 +157,36 @@ const pipeline1 = [
     "category": "Eletrônicos",
     "totalRevenue": 4198,
     "uniqueProductsCount": 2,
-    "productsList": [
-      "Quantum Phone Z",
-      "Smartwatch FitPulse Active"
-    ]
+    "productsList": ["Quantum Phone Z", "Smartwatch FitPulse Active"]
   },
   {
     "totalQuantitySold": 1,
     "category": "Monitores",
     "totalRevenue": 2499,
     "uniqueProductsCount": 1,
-    "productsList": [
-      "Monitor UltraWide Curved"
-    ]
+    "productsList": ["Monitor UltraWide Curved"]
   },
   {
     "totalQuantitySold": 3,
     "category": "Periféricos",
     "totalRevenue": 1249.7,
     "uniqueProductsCount": 2,
-    "productsList": [
-      "Teclado Mecânico CyberClick",
-      "Mouse Wireless Neon Glide"
-    ]
-  },
-  {
-    "totalQuantitySold": 1,
-    "category": "Áudio",
-    "totalRevenue": 499,
-    "uniqueProductsCount": 1,
-    "productsList": [
-      "Caixa de Som BassBox X"
-    ]
+    "productsList": ["Teclado Mecânico CyberClick", "Mouse Wireless Neon Glide"]
   }
 ]
 ```
 
 ---
 
-### 4.2. Pipeline 2: Análise de Engajamento e Ticket Médio por Usuário
-Este pipeline analisa o volume de compras de cada usuário, calculando o valor total gasto, o número de itens comprados, a quantidade de pedidos finalizados e o ticket médio por compra.
+### 4.2. Pipeline 2: Análise de Consumo e Ticket Médio por Usuário
+Mapeia os hábitos de compras de cada usuário do sistema, calculando o gasto total acumulado, o volume de produtos comprados, pedidos finalizados e o ticket médio de consumo.
 
 #### Código do Pipeline:
 ```javascript
 const pipeline2 = [
-  // 1. Filtrar apenas eventos de compra
-  { $match: { type: 'purchase' } },
-  // 2. Agrupar por usuário acumulando quantidades, preços e ocorrências
+  { $match: { type: 'purchase' } }, // Filtra logs de compras
   {
-    $group: {
+    $group: { // Agrupa por usuário acumulando quantidades e calculando frequências
       _id: '$userId',
       name: { $first: '$userName' },
       totalSpent: { $sum: { $multiply: ['$quantity', '$price'] } },
@@ -239,9 +194,8 @@ const pipeline2 = [
       purchaseCount: { $sum: 1 }
     }
   },
-  // 3. Projetar e calcular o ticket médio por compra de cada usuário
   {
-    $project: {
+    $project: { // Calcula divisão matemática e arredonda
       userId: '$_id',
       name: 1,
       totalSpent: { $round: ['$totalSpent', 2] },
@@ -251,12 +205,11 @@ const pipeline2 = [
       _id: 0
     }
   },
-  // 4. Ordenar do usuário que gastou mais para o que gastou menos
-  { $sort: { totalSpent: -1 } }
+  { $sort: { totalSpent: -1 } } // Ordena do maior cliente para o menor
 ];
 ```
 
-#### Saída JSON Real da Agregação:
+#### Saída Real da Agregação (JSON):
 ```json
 [
   {
@@ -274,37 +227,44 @@ const pipeline2 = [
     "userId": "bob",
     "totalSpent": 2499,
     "averageTicket": 2499
-  },
-  {
-    "name": "David Oliveira",
-    "totalItemsBought": 2,
-    "purchaseCount": 1,
-    "userId": "david",
-    "totalSpent": 699.8,
-    "averageTicket": 699.8
-  },
-  {
-    "name": "Eve Santos",
-    "totalItemsBought": 1,
-    "purchaseCount": 1,
-    "userId": "eve",
-    "totalSpent": 699,
-    "averageTicket": 699
-  },
-  {
-    "name": "Charlie Costa",
-    "totalItemsBought": 1,
-    "purchaseCount": 1,
-    "userId": "charlie",
-    "totalSpent": 549.9,
-    "averageTicket": 549.9
   }
 ]
 ```
 
 ---
 
-## 5. Instruções de Instalação e Execução
+## 5. Redis: Estruturas Comuns e Estruturas Probabilísticas
+
+### 5.1. Estruturas Comuns (Hash e Sorted Set)
+
+#### A. HASH (`cart:userId` - Carrinho de Compras)
+* **Função**: Armazena de forma chave-valor simples os produtos adicionados ao carrinho ativo do usuário e suas respectivas quantidades.
+* **Comandos CLI Utilizados**:
+  * Adicionar item: `HSET cart:bob prod_chair_03 1`
+  * Incrementar quantidade: `HINCRBY cart:bob prod_chair_03 1`
+  * Buscar todos os itens: `HGETALL cart:bob`
+  * Apagar carrinho: `DEL cart:bob`
+
+#### B. SORTED SET (`leaderboard` - Classificação / Pontuação de Fidelidade)
+* **Função**: Ranking ordenado dinamicamente em memória. A pontuação (Pulse Points) é acumulada a cada compra efetuada pelo próprio usuário ou por indicações a amigos que resultaram em compra.
+* **Comandos CLI Utilizados**:
+  * Adicionar pontuação: `ZADD leaderboard 150 "alice"`
+  * Incrementar pontos por compras/indicações: `ZINCRBY leaderboard 50 "alice"`
+  * Retornar Top 10 usuários ordenados por pontos decrescentes: `ZREVRANGE leaderboard 0 9 WITHSCORES`
+
+---
+
+### 5.2. Estruturas Probabilísticas (HyperLogLog)
+
+#### A. HYPERLOGLOG (`unique_visitors:YYYY-MM-DD` - Visitantes Únicos Diários)
+* **Função**: Estimativa matemática probabilística da cardinalidade de usuários ativos diariamente no sistema. Ele permite que a plataforma monitore visitas únicas diárias com consumo fixo de memória de no máximo **12KB** por dia, mesmo que o sistema receba milhões de acessos, apresentando uma precisão de 99,19%.
+* **Comandos CLI Utilizados**:
+  * Registrar a visita de um usuário ativo: `PFADD unique_visitors:2026-07-14 "alice"`
+  * Consultar a contagem estimada de visitantes únicos hoje: `PFCOUNT unique_visitors:2026-07-14`
+
+---
+
+## 6. Instruções de Instalação e Execução
 
 ### Passo 1: Inicializar os Contêineres Docker
 Certifique-se de que o **Docker Desktop** está aberto e ativo. Em seguida, na pasta raiz do projeto, execute:
@@ -347,5 +307,5 @@ Caso queira testar a interface protótipo em Streamlit e rodar as telas de CRUD 
 
 ---
 
-## 6. Screenshots do Sistema (Diretório Recomendado)
+## 7. Screenshots do Sistema (Diretório Recomendado)
 Os prints das telas do protótipo e das coleções NoSQL podem ser salvos no diretório `./screenshots` do projeto para inclusão no relatório e no repositório final do GitHub.
