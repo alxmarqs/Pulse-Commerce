@@ -39,7 +39,6 @@ Pulse-Commerce/
 ├── db.js                 # Camada de configuração e inicialização dos clientes NoSQL (Mongo, Redis, Neo4j)
 ├── docker-compose.yml    # Orquestração local dos contêineres NoSQL via Docker
 ├── HOSPEDAGEM_NUVEM.md   # Guia detalhado passo-a-passo para deploy em nuvem (Render, Atlas, Upstash, AuraDB)
-├── MAPA_DO_PROJETO.md    # Mapeamento acadêmico das entregas para correção
 ├── package.json          # Metadados do projeto Node.js e gerenciamento de dependências
 ├── run_aggregations.js   # Script executável para rodar as agregações MongoDB no terminal
 ├── run_tunnels.js        # Gerenciador de túneis SSH automatizado via Serveo
@@ -469,10 +468,19 @@ O banco de dados de grafos Neo4j mapeia a teia de amizades, interações de infl
 ---
 
 ### 6.2. Operação GDS (Graph Data Science): Algoritmo de PageRank para Centralidade de Influência
-Utilizamos o módulo **Neo4j GDS** para calcular dinamicamente a importância de cada usuário na rede com base na conectividade das suas relações de amizade (`[:FRIEND]`). Isso nos permite detectar quais usuários são os **"Influenciadores da Rede"** para direcionar campanhas de marketing direcionadas ou bonificações especiais de pontos.
+Utilizamos o módulo **Neo4j GDS** para calcular dinamicamente a importância de cada usuário na rede com base na conectividade das suas relações de amizade. Isso nos permite detectar quais usuários são os **"Influenciadores da Rede"** para direcionar campanhas de marketing direcionadas ou bonificações especiais de pontos.
+
+#### 🔗 O Tipo de Aresta no Algoritmo GDS: A aresta de amizade (`[:FRIEND]`)
+O algoritmo de PageRank é executado especificamente sobre a aresta **`FRIEND`** do grafo social:
+* **Tipo de Aresta**: **`FRIEND`** (Amizade).
+* **Direcionamento / Orientação**: **`UNDIRECTED`** (Não Direcionado / Bidirecional). 
+* **Justificativa de Engenharia**: A amizade na nossa plataforma é uma relação simétrica (mútua). Se o Usuário A é amigo do Usuário B, ambos compartilham a conexão social. Ao projetar a aresta como `UNDIRECTED`, o GDS trata a conexão como bidirecional, permitindo que a "importância" de um nó flua igualmente entre seus vizinhos conectados. Isso cria um grafo simétrico perfeito onde o algoritmo de PageRank consegue distribuir pesos de centralidade de forma precisa, identificando quem são os reais intermediadores (hubs) sociais da plataforma.
+* **Por que não usar outras arestas (`BOUGHT` ou `RECOMMENDED`)?**: Arestas como `BOUGHT` ligam usuários a produtos (grafo bipartido). Para calcular a influência de rede social *entre pessoas* (quem tem maior alcance de indicações entre usuários), a projeção deve conter apenas as conexões homogêneas de usuário para usuário (`User-[:FRIEND]-User`).
+
+---
 
 #### Passo 1: Projetar o Grafo na Memória do Neo4j GDS
-Cria a projeção em memória direcionando as arestas de amizade bidirecionais (não direcionadas):
+Cria a projeção em memória utilizando especificamente a aresta de amizade simétrica (`FRIEND` com orientação `UNDIRECTED`):
 ```cypher
 CALL gds.graph.project(
   'socialGraph',
@@ -516,7 +524,7 @@ CALL gds.graph.drop('socialGraph')
 
 ---
 
-## 🛠️ 8. Instruções de Instalação e Execução
+## 🛠️ Instruções de Instalação e Execução
 
 ### Passo 1: Inicializar os Contêineres Docker
 Certifique-se de que o **Docker Desktop** está aberto e ativo. Em seguida, na pasta raiz do projeto, execute:
