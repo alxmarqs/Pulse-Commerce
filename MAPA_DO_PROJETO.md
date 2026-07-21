@@ -6,7 +6,7 @@ Este documento serve como um mapa de auditoria para o professor. Ele aponta os a
 
 ## 🔗 Links de Acesso Online (Projeto Rodando na Web)
 * **🛍️ E-Commerce Principal (Express/Vis.js)**: [https://f7270a3f21bc5437-200-131-207-134.serveousercontent.com](https://f7270a3f21bc5437-200-131-207-134.serveousercontent.com)
-* **📊 Painel Streamlit (CRUD NoSQL & Autenticação)**: [https://b1cfca82fe592319-200-131-207-134.serveousercontent.com](https://b1cfca82fe592319-200-131-207-134.serveousercontent.com)
+* **📊 Painel Streamlit (CRUD NoSQL & Autenticação)**: [https://pulse-commerce-9z2qo2l59kfxckvca6xblt.streamlit.app/](https://pulse-commerce-9z2qo2l59kfxckvca6xblt.streamlit.app/)
 
 ---
 
