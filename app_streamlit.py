@@ -1,3 +1,14 @@
+try:
+    import tornado.web
+    # Monkeypatch Tornado to disable browser caching of static files (prevents caching of tunnel warnings)
+    def custom_set_extra_headers(self, path):
+        self.set_header("Cache-Control", "no-cache, no-store, must-revalidate, max-age=0")
+        self.set_header("Pragma", "no-cache")
+        self.set_header("Expires", "0")
+    tornado.web.StaticFileHandler.set_extra_headers = custom_set_extra_headers
+except Exception:
+    pass
+
 import streamlit as st
 import json
 from datetime import datetime

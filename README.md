@@ -5,8 +5,8 @@ Este repositório contém a implementação completa do **Pulse Commerce**, um p
 ---
 
 ## 🔗 Links de Acesso Online (Projeto Rodando na Web)
-* **🛍️ E-Commerce Principal (Express/Vis.js)**: [https://iuvzx-177-69-201-73.free.pinggy.net](https://iuvzx-177-69-201-73.free.pinggy.net)
-* **📊 Painel Streamlit (CRUD NoSQL & Autenticação)**: [https://itdnw-177-69-201-73.free.pinggy.net](https://itdnw-177-69-201-73.free.pinggy.net)
+* **🛍️ E-Commerce Principal (Express/Vis.js)**: [https://1be1bd77949438e3-200-131-207-134.serveousercontent.com](https://1be1bd77949438e3-200-131-207-134.serveousercontent.com)
+* **📊 Painel Streamlit (CRUD NoSQL & Autenticação)**: [https://369269170fcec78b-200-131-207-134.serveousercontent.com](https://369269170fcec78b-200-131-207-134.serveousercontent.com)
 
 *(Nota: Os links estão ativos e conectados de forma segura aos servidores e bancos de dados NoSQL do projeto).*
 

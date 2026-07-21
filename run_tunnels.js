@@ -4,16 +4,15 @@ const path = require('path');
 
 function startSshTunnel(port, name, urlFile) {
   const filePath = path.join(__dirname, urlFile);
-  console.log(`Starting ${name} SSH tunnel on port ${port} using Pinggy...`);
+  console.log(`Starting ${name} SSH tunnel on port ${port} using Serveo...`);
   
   // Clean up any old URL file
   try { fs.unlinkSync(filePath); } catch (e) {}
 
   const child = spawn('ssh', [
     '-o', 'StrictHostKeyChecking=no',
-    '-p', '443',
-    '-R', `0:127.0.0.1:${port}`,
-    'free@a.pinggy.io'
+    '-R', `80:127.0.0.1:${port}`,
+    'serveo.net'
   ]);
   
   let urlSent = false;
@@ -21,8 +20,8 @@ function startSshTunnel(port, name, urlFile) {
   child.stdout.on('data', (data) => {
     const output = data.toString();
     
-    // Look for HTTPS URL in the output, e.g. "https://xxxx.free.pinggy.net"
-    const match = output.match(/https:\/\/[a-zA-Z0-9.-]+\.free\.pinggy\.net/);
+    // Look for HTTPS URL in the output, e.g. "https://xxxx.serveousercontent.com"
+    const match = output.match(/https:\/\/[a-zA-Z0-9.-]+\.serveousercontent\.com/);
     if (match && !urlSent) {
       const url = match[0];
       console.log(`${name} Tunnel URL: ${url}`);
@@ -45,6 +44,6 @@ function startSshTunnel(port, name, urlFile) {
   });
 }
 
-// Initialize SSH tunnels via Pinggy
+// Initialize SSH tunnels via Serveo
 startSshTunnel(3000, 'Store', 'store_url.txt');
 startSshTunnel(8501, 'Admin', 'admin_url.txt');

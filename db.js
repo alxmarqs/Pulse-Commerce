@@ -203,6 +203,18 @@ const redisDb = {
     const val = await redisClient.flushAll();
     broadcastLog('Redis', 'FLUSHALL', Date.now() - start);
     return val;
+  },
+  pfAdd: async (key, element) => {
+    const start = Date.now();
+    const val = await redisClient.pfAdd(key, element);
+    broadcastLog('Redis', `PFADD ${key} "${element}"`, Date.now() - start);
+    return val;
+  },
+  pfCount: async (key) => {
+    const start = Date.now();
+    const val = await redisClient.pfCount(key);
+    broadcastLog('Redis', `PFCOUNT ${key}`, Date.now() - start);
+    return val;
   }
 };
 
