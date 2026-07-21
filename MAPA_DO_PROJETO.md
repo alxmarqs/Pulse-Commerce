@@ -5,8 +5,8 @@ Este documento serve como um mapa de auditoria para o professor. Ele aponta os a
 ---
 
 ## 🔗 Links de Acesso Online (Projeto Rodando na Web)
-* **🛍️ E-Commerce Principal (Express/Vis.js)**: [https://pulse-store-marques.loca.lt](https://pulse-store-marques.loca.lt)
-* **📊 Painel Streamlit (CRUD NoSQL & Autenticação)**: [https://pulse-admin-marques.loca.lt](https://pulse-admin-marques.loca.lt)
+* **🛍️ E-Commerce Principal (Express/Vis.js)**: [https://22046a60c71900.lhr.life](https://22046a60c71900.lhr.life)
+* **📊 Painel Streamlit (CRUD NoSQL & Autenticação)**: [https://19294b2d16eb82.lhr.life](https://19294b2d16eb82.lhr.life)
 
 ---
 

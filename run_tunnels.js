@@ -1,34 +1,50 @@
-const localtunnel = require('localtunnel');
+const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-const projectDir = __dirname;
+function startSshTunnel(port, name, urlFile) {
+  const filePath = path.join(__dirname, urlFile);
+  console.log(`Starting ${name} SSH tunnel on port ${port}...`);
+  
+  // Clean up any old URL file
+  try { fs.unlinkSync(filePath); } catch (e) {}
 
-async function startTunnel(port, subdomain, name) {
-  const filePath = path.join(projectDir, `${name.toLowerCase()}_url.txt`);
-  try {
-    console.log(`Starting ${name} tunnel on port ${port}...`);
-    const tunnel = await localtunnel({ port, subdomain });
+  const child = spawn('ssh', [
+    '-o', 'StrictHostKeyChecking=no',
+    '-R', `80:127.0.0.1:${port}`,
+    'nokey@localhost.run'
+  ]);
+  
+  let urlSent = false;
+  
+  child.stdout.on('data', (data) => {
+    const output = data.toString();
     
-    console.log(`${name} URL: ${tunnel.url}`);
-    fs.writeFileSync(filePath, tunnel.url, 'utf8');
-    
-    tunnel.on('close', () => {
-      console.log(`${name} tunnel closed. Reconnecting in 5s...`);
-      try { fs.unlinkSync(filePath); } catch (e) {}
-      setTimeout(() => startTunnel(port, subdomain, name), 5000);
-    });
-    
-    tunnel.on('error', (err) => {
-      console.error(`${name} tunnel error:`, err);
-    });
-  } catch (err) {
-    console.error(`Failed to start ${name} tunnel:`, err);
+    // Look for URL in the output, e.g. "https://xxxx.lhr.life"
+    const match = output.match(/https:\/\/[a-zA-Z0-9.-]+\.lhr\.life/);
+    if (match && !urlSent) {
+      const url = match[0];
+      console.log(`${name} Tunnel URL: ${url}`);
+      fs.writeFileSync(filePath, url, 'utf8');
+      urlSent = true;
+    }
+  });
+  
+  child.stderr.on('data', (data) => {
+    // Suppress verbose debug info, log errors if needed
+    const msg = data.toString().trim();
+    if (msg.includes('error') || msg.includes('Permission denied')) {
+      console.error(`[${name} SSH Error]: ${msg}`);
+    }
+  });
+  
+  child.on('close', (code) => {
+    console.log(`${name} SSH tunnel closed with code ${code}. Reconnecting in 5s...`);
     try { fs.unlinkSync(filePath); } catch (e) {}
-    setTimeout(() => startTunnel(port, subdomain, name), 5000);
-  }
+    setTimeout(() => startSshTunnel(port, name, urlFile), 5000);
+  });
 }
 
-// Initialize tunnels
-startTunnel(3000, 'pulse-store-marques', 'Store');
-startTunnel(8501, 'pulse-admin-marques', 'Admin');
+// Initialize SSH tunnels
+startSshTunnel(3000, 'Store', 'store_url.txt');
+startSshTunnel(8501, 'Admin', 'admin_url.txt');
