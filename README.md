@@ -66,6 +66,44 @@ Pulse-Commerce/
 
 ---
 
+### 🔄 1.4. Mecânica de Integração e Fluxo Prático do Sistema
+Para entender "o jeito que as coisas foram usadas", a jornada de uso do cliente na plataforma demonstra como a persistência poliglota funciona de ponta a ponta na prática:
+
+#### 1. Navegação no Catálogo (MongoDB)
+* **Como é usado**: Quando o usuário abre a página inicial da loja, o frontend faz uma requisição HTTP `GET /api/products`.
+* **Fluxo no Banco**: A API executa a consulta `db.products.find()` no **MongoDB**. As especificações dinâmicas (`specs`) são lidas diretamente do JSON e renderizadas nos cards do storefront.
+
+#### 2. Adição de Itens ao Carrinho (Redis HASH)
+* **Como é usado**: O usuário escolhe um produto e clica em "Adicionar ao Carrinho".
+* **Fluxo no Banco**: A API faz um comando `HINCRBY cart:userId productId 1` no **Redis**. O carrinho é incrementado em tempo real com latência sub-milissegundo, sem tocar no banco principal (MongoDB), economizando largura de banda e conexões.
+
+#### 3. Carregamento do Painel Social e Vis.js (Neo4j & Redis ZSET)
+* **Como é usado**: O usuário clica na aba lateral para ver seus amigos e o ranking de pontuação.
+* **Fluxo nos Bancos**:
+  * A lista de amigos e as recomendações ativas são consultadas no **Neo4j** via consultas Cypher que percorrem as arestas `[:FRIEND]` e `[:RECOMMENDED]`.
+  * O pódio em 3D lê o Sorted Set `leaderboard` do **Redis** usando `ZREVRANGE leaderboard 0 2 WITHSCORES`, obtendo instantaneamente os líderes já ordenados.
+
+#### 4. Indicação de um Produto para um Amigo (Neo4j)
+* **Como é usado**: O usuário arrasta um produto ou clica no botão de "Indicar" para um amigo da lista.
+* **Fluxo no Banco**: O servidor executa um comando Cypher no **Neo4j** criando uma aresta `-[:RECOMMENDED {to: amigoId}]->` apontando do usuário atual para o nó do produto. Essa aresta fica guardada em estado pendente até que o amigo compre o produto.
+
+#### 5. O Checkout Coordenado (Finalização de Compra)
+* **Como é usado**: O usuário clica em "Finalizar Compra".
+* **Fluxo nos Bancos (Orquestração)**:
+  * O servidor lê o carrinho no **Redis** (`HGETALL cart:userId`).
+  * Para cada produto do carrinho, o servidor faz uma consulta no **Neo4j** procurando por arestas `-[:RECOMMENDED {to: compradorId}]->` que apontem para aquele produto.
+  * Se houver indicação, o amigo que indicou ganha 100 pontos no **Redis** (`ZINCRBY leaderboard 100 amigoId`) e a indicação é apagada do grafo.
+  * O comprador ganha 50 pontos por item no **Redis** (`ZINCRBY leaderboard 50 compradorId`).
+  * O histórico de compra é gravado no **Neo4j** criando a aresta `-[:BOUGHT]->`.
+  * Um documento histórico com o fechamento do pedido é inserido no **MongoDB** na coleção `activities`.
+  * O carrinho temporário é deletado do **Redis** (`DEL cart:userId`).
+
+#### 6. Registro de Tráfego Único Diário (Redis HyperLogLog)
+* **Como é usado**: Na mesma ação de fechamento (ou no login), o sistema registra a atividade do usuário.
+* **Fluxo no Banco**: O servidor executa `PFADD unique_visitors:YYYY-MM-DD userId` no **Redis** para marcar probabilisticamente que aquele usuário acessou o sistema naquele dia, mantendo a estimativa de tráfego atualizada de forma ultra leve na memória.
+
+---
+
 ## 📐 ENTREGA 2: Modelo de Agregação e Hierarquia de Informações
 
 ### 2.1. Hierarquia de Informações NoSQL
@@ -125,7 +163,7 @@ Armazena os registros estruturados de todas as ações que acontecem na platafor
   * **`type`**: Tipo de ação registrada (String: `"purchase"` ou `"user_registered"`). Usado para filtrar logs analíticos.
   * **`productId`**: ID do produto envolvido (String). Usado na agregação para calcular estatísticas de vendas do produto.
   * **`quantity`**: Quantidade adquirida (Integer). Usado para calcular o volume de vendas.
-  * **`price`**: Preço praticado no momento exato da compra (Float). Essencial para manter o histórico financeiro correct mesmo que o preço do produto mude no catálogo futuramente.
+  * **`price`**: Preço praticado no momento exato da compra (Float). Essencial para manter o histórico financeiro correto mesmo que o preço do produto mude no catálogo futuramente.
   * **`description`**: Texto formatado da ação (String). Exibido diretamente na timeline social.
 
 ---
