@@ -521,3 +521,43 @@ ORDER BY score DESC
 ```cypher
 CALL gds.graph.drop('socialGraph')
 ```
+
+---
+
+## 🗺️ Mapa de Código: Onde estão as Entregas no Código?
+
+Para facilitar a correção pelo professor, este mapa indica onde cada entrega está implementada no código-fonte do repositório:
+
+### 📁 ENTREGA 1: Criação do Repositório e Tema do Projeto
+* **Tema do Projeto & Funcionalidade de Maior Valor**: Descritos em [README.md](file:///c:/Users/contr/Dropbox/Particular/Pulse%20Commerce/README.md#11-tema-do-projeto).
+* **Checkout Coordenado Poliglota**: Implementado na rota Express em [server.js](file:///c:/Users/contr/Dropbox/Particular/Pulse%20Commerce/server.js#L243-L348) (`app.post('/api/checkout')`).
+* **Estrutura de Pastas**: Listada em [README.md](file:///c:/Users/contr/Dropbox/Particular/Pulse%20Commerce/README.md#13-organiza%C3%A7%C3%A3o-do-reposit%C3%B9rio-estrutura-de-pastas).
+* **Mecânica de Integração Completa**: Explicada em [README.md](file:///c:/Users/contr/Dropbox/Particular/Pulse%20Commerce/README.md#14-mec%C3%A2nica-de-integra%C3%A7%C3%A3o-e-fluxo-pr%C3%A1tico-do-sistema).
+
+### 📐 ENTREGA 2: Modelo de Agregação e Hierarquia de Informações
+* **Catálogo de Produtos (MongoDB Documental)**: Inserção de dados estruturados em [seed.js](file:///c:/Users/contr/Dropbox/Particular/Pulse%20Commerce/seed.js#L73-L125) e endpoints em [server.js](file:///c:/Users/contr/Dropbox/Particular/Pulse%20Commerce/server.js#L42-L122).
+* **Carrinho de Compras (Redis HASH)**: Gerenciamento em memória implementado em [server.js](file:///c:/Users/contr/Dropbox/Particular/Pulse%20Commerce/server.js#L173-L241) (`app.get('/api/cart')` e `app.post('/api/cart')`).
+* **Grafo e Relacionamentos (Neo4j)**: Criação de nós e arestas de relacionamento sociais mapeados em [server.js](file:///c:/Users/contr/Dropbox/Particular/Pulse%20Commerce/server.js#L381-L534) (`/api/social`, `/api/recommend` e `/api/social/friend`).
+
+### 💻 ENTREGA 3: CRUD de Coleções no Streamlit
+* **Protótipo Streamlit**: Arquivo principal de interface em Python em [app_streamlit.py](file:///c:/Users/contr/Dropbox/Particular/Pulse%20Commerce/app_streamlit.py).
+* **Operações CRUD (MongoDB + Neo4j)**: Implementadas na aba "CRUD de Produtos" em [app_streamlit.py](file:///c:/Users/contr/Dropbox/Particular/Pulse%20Commerce/app_streamlit.py#L169-L325) (contendo formulários visuais para INSERT, FIND, UPDATE e DELETE sincronizados).
+* **Banco Semente**: Script de limpeza e população inicial automática em [seed.js](file:///c:/Users/contr/Dropbox/Particular/Pulse%20Commerce/seed.js).
+* **Diretório de Prints**: Todos os prints salvos na pasta `/screenshots`.
+
+### 📊 ENTREGA 4: MongoDB Aggregation Pipelines e Índices
+* **Índices de Performance**: Criados na inicialização do banco e documentados em [README.md](file:///c:/Users/contr/Dropbox/Particular/Pulse%20Commerce/README.md#41-mongodb-%C3%8Dndices-performance-e-escrita).
+* **Pipelines de Agregação**:
+  * Implementados no painel analítico do Streamlit em [app_streamlit.py](file:///c:/Users/contr/Dropbox/Particular/Pulse%20Commerce/app_streamlit.py#L515) (receita por categoria) e em [app_streamlit.py](file:///c:/Users/contr/Dropbox/Particular/Pulse%20Commerce/app_streamlit.py#L547) (ticket médio por usuário).
+  * Script JavaScript executável em terminal: [run_aggregations.js](file:///c:/Users/contr/Dropbox/Particular/Pulse%20Commerce/run_aggregations.js#L39-L101).
+
+### ⚡ ENTREGA 5: Funcionalidades com Redis
+* **Hash (Carrinhos)**: Código e rotas em [server.js](file:///c:/Users/contr/Dropbox/Particular/Pulse%20Commerce/server.js#L173-L241).
+* **Sorted Set (Leaderboard)**: Incrementação de score de fidelidade em [server.js](file:///c:/Users/contr/Dropbox/Particular/Pulse%20Commerce/server.js#L285-L320) e rota de leaderboard em [server.js](file:///c:/Users/contr/Dropbox/Particular/Pulse%20Commerce/server.js#L350-L380).
+* **HyperLogLog (Estimativa de Tráfego)**: Registro de visitantes diários em [server.js](file:///c:/Users/contr/Dropbox/Particular/Pulse%20Commerce/server.js#L536-L584).
+* **Análise Comparativa (ZSET vs. SET)**: Explicada teoricamente em [README.md](file:///c:/Users/contr/Dropbox/Particular/Pulse%20Commerce/README.md#51-estruturas-comuns-determin%C3%ADsticas).
+
+### 🕸️ ENTREGA 6: Neo4j GDS
+* **Visualização do Grafo**: Endpoint social para o renderizador Vis.js em [server.js](file:///c:/Users/contr/Dropbox/Particular/Pulse%20Commerce/server.js#L381-L470).
+* **Operação GDS PageRank**: Projeção simétrica com a aresta `FRIEND` (orientação `UNDIRECTED`), execução e limpeza documentados e explicados matematicamente em [README.md](file:///c:/Users/contr/Dropbox/Particular/Pulse%20Commerce/README.md#62-opera%C3%A7%C3%A3o-gds-graph-data-science-algoritmo-de-pagerank-para-centralidade-de-influ%C3%AAncia).
+
