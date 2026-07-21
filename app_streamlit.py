@@ -67,6 +67,18 @@ if "user_id" not in st.session_state:
 if "user_name" not in st.session_state:
     st.session_state.user_name = None
 
+# URL query parameter session recovery (prevents logout on proxy disconnects)
+if not st.session_state.logged_in and "logged_user_id" in st.query_params:
+    qid = st.query_params["logged_user_id"]
+    try:
+        user_data = run_cypher("MATCH (u:User {id: $id}) RETURN u.name AS name", {"id": qid})
+        if user_data:
+            st.session_state.logged_in = True
+            st.session_state.user_id = qid
+            st.session_state.user_name = user_data[0].get("name")
+    except Exception:
+        pass
+
 # Authentication Interface if not logged in
 if not st.session_state.logged_in:
     st.markdown("### 🔐 Autenticação NoSQL")
@@ -93,12 +105,14 @@ if not st.session_state.logged_in:
                                 st.session_state.logged_in = True
                                 st.session_state.user_id = login_id
                                 st.session_state.user_name = stored_name
+                                st.query_params["logged_user_id"] = login_id
                                 st.success(f"Bem-vindo(a), {stored_name}!")
                                 st.rerun()
                         elif stored_password == login_pass:
                             st.session_state.logged_in = True
                             st.session_state.user_id = login_id
                             st.session_state.user_name = stored_name
+                            st.query_params["logged_user_id"] = login_id
                             st.success(f"Bem-vindo(a), {stored_name}!")
                             st.rerun()
                         else:
@@ -150,6 +164,8 @@ if st.sidebar.button("🚪 Sair (Logout)", use_container_width=True):
     st.session_state.logged_in = False
     st.session_state.user_id = None
     st.session_state.user_name = None
+    if "logged_user_id" in st.query_params:
+        del st.query_params["logged_user_id"]
     st.rerun()
 
 # --- NAVIGATION TABS ---
