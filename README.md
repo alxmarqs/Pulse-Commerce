@@ -151,7 +151,7 @@ A estrutura **HASH** do Redis funciona como um mapa/dicionário dentro de uma ú
 
 ### 2.4. Neo4j - Estrutura Detalhada de Nós e Arestas (Relacionamentos)
 
-O banco de grafos Neo4j mapeia a rede de relacionamentos e interações. Abaixo está a descrição detalhada do propósito de cada nó e aresta (relacionamento):
+O banco de grafos Neo4j mapeia a teia de amizades, interações de influência (indicações de produtos) e o histórico de aquisições de produtos:
 
 #### A. Nós (Nodes)
 * **`(:User {id: $id, name: $name, password: $password})`**:
@@ -215,10 +215,16 @@ Para garantir consultas de baixa latência em coleções com milhões de registr
 ### 4.2. Aggregation Pipeline 1: Faturamento e Volume de Vendas por Categoria
 Calcula a receita total acumulada, produtos vendidos e a contagem de itens distintos vendidos agrupados por categoria.
 
-#### Código do Pipeline:
+#### Código do Pipeline Comentado Estágio por Estágio:
 ```javascript
 const pipeline1 = [
+  // ESTÁGIO 1 ($match): Filtra e restringe a busca apenas para documentos cujo atributo "type"
+  // seja exatamente "purchase" (compra). Evita processar logs irrelevantes de cadastro de usuários.
   { $match: { type: 'purchase' } },
+
+  // ESTÁGIO 2 ($lookup): Realiza um "LEFT OUTER JOIN" com a coleção "products".
+  // Compara o campo local "productId" da atividade com o campo chave "_id" na coleção products.
+  // Junta as informações do produto em um vetor aninhado chamado "productDetails".
   {
     $lookup: {
       from: 'products',
@@ -227,7 +233,14 @@ const pipeline1 = [
       as: 'productDetails'
     }
   },
+
+  // ESTÁGIO 3 ($unwind): Como o lookup retorna uma array (vetor), o unwind desconstrói essa array,
+  // transformando cada objeto dentro dela em um documento individual de primeiro nível.
   { $unwind: '$productDetails' },
+
+  // ESTÁGIO 4 ($group): Agrupa os registros com base no campo de categoria obtido no lookup.
+  // Calcula a receita acumulada total (soma da quantidade multiplicada pelo preço unitário),
+  // a quantidade total de itens vendidos e reúne os nomes únicos de produtos no conjunto "productsSold".
   {
     $group: {
       _id: '$productDetails.category',
@@ -236,6 +249,10 @@ const pipeline1 = [
       productsSold: { $addToSet: '$productDetails.name' }
     }
   },
+
+  // ESTÁGIO 5 ($project): Projeta os dados finais, formatando e limpando o documento de saída.
+  // Renomeia o ID do grupo para "category", arredonda o faturamento total para 2 casas decimais,
+  // calcula o tamanho do vetor contendo os produtos únicos e oculta o ID padrão do MongoDB (_id: 0).
   {
     $project: {
       category: '$_id',
@@ -246,6 +263,9 @@ const pipeline1 = [
       _id: 0
     }
   },
+
+  // ESTÁGIO 6 ($sort): Ordena os resultados com base no faturamento total de forma decrescente (-1).
+  // Isso exibe as categorias de maior faturamento no topo do relatório.
   { $sort: { totalRevenue: -1 } }
 ];
 ```
@@ -275,10 +295,15 @@ const pipeline1 = [
 ### 4.3. Aggregation Pipeline 2: Ticket Médio de Consumo por Usuário
 Mapeia o consumo total, itens comprados e o valor médio gasto por compra (ticket médio) de cada cliente.
 
-#### Código do Pipeline:
+#### Código do Pipeline Comentado Estágio por Estágio:
 ```javascript
 const pipeline2 = [
+  // ESTÁGIO 1 ($match): Filtra a coleção analítica para processar apenas atividades de compras ("purchase").
   { $match: { type: 'purchase' } },
+
+  // ESTÁGIO 2 ($group): Agrupa os documentos pelo campo "userId" de cada comprador.
+  // Guarda o primeiro nome encontrado (userName), acumula o gasto total do usuário,
+  // soma o volume total de itens comprados e conta o número total de transações de compra realizadas (purchaseCount).
   {
     $group: {
       _id: '$userId',
@@ -288,6 +313,11 @@ const pipeline2 = [
       purchaseCount: { $sum: 1 }
     }
   },
+
+  // ESTÁGIO 3 ($project): Limpa e calcula novos campos para a saída.
+  // Mapeia o ID do grupo como "userId", mantém o nome, gasto total e quantidades.
+  // E calcula dinamicamente o ticket médio dividindo o gasto total pelo número de transações de compra,
+  // limitando o resultado para 2 casas decimais.
   {
     $project: {
       userId: '$_id',
@@ -299,6 +329,8 @@ const pipeline2 = [
       _id: 0
     }
   },
+
+  // ESTÁGIO 4 ($sort): Ordena os clientes do maior faturamento total acumulado para o menor (-1).
   { $sort: { totalSpent: -1 } }
 ];
 ```
@@ -319,23 +351,58 @@ const pipeline2 = [
 
 ---
 
-## ⚡ ENTREGA 5: Redis - Estruturas Comuns e Estruturas Probabilísticas
+## ⚡ ENTREGA 5: Redis - Estruturas Comuns vs. Estruturas Probabilísticas
 
-### 5.1. Sorted Set (`leaderboard` - Ranking de Fidelidade)
-A pontuação de fidelidade (Pulse Points) de cada usuário é salva em um Sorted Set no Redis. Ele reordena os usuários instantaneamente em tempo de escrita, permitindo exibir o pódio com latência zero.
-* **Comando de Escrita**: `ZINCRBY leaderboard 50 "alice"` (Soma 50 pontos por compras)
-* **Comando de Leitura**: `ZREVRANGE leaderboard 0 2 WITHSCORES` (Retorna o Top 3 para o pódio 3D)
+Uma das maiores vantagens da persistência poliglota do Pulse Commerce é a divisão de estruturas no Redis entre dados **Determinísticos (Estruturas Comuns)** e dados **Estimados (Estruturas Probabilísticas)**. Abaixo está a análise teórica e técnica sobre o uso de cada uma:
 
-### 5.2. Hash (`cart:userId` - Carrinho de Compras Ativo)
-Usado para armazenar itens temporários de alta taxa de escrita e remoção.
-* **Comando de Inserção/Incremento**: `HINCRBY cart:alice prod_headphone_05 1`
-* **Comando de Consulta**: `HGETALL cart:alice`
-* **Comando de Remoção**: `HDEL cart:alice prod_headphone_05`
+```text
++-------------------------------------------------------------------------------------------------+
+|                                     REDIS ESTRUTURAS                                            |
++---------------------------------------------------+---------------------------------------------+
+| ESTRUTURAS COMUNS (DETERMINÍSTICAS)               | ESTRUTURAS PROBABILÍSTICAS                  |
+| ex: HASH e SORTED SET (ZSET)                      | ex: HYPERLOGLOG (HLL)                       |
++---------------------------------------------------+---------------------------------------------+
+| * Armazena e preserva os valores originais exatos| * NÃO armazena os valores originais         |
+| * Consumo de memória cresce linearmente (O(N))   | * Consumo de memória é FIXO (máx. 12KB)     |
+| * Ideal para dados operacionais (ex: carrinhos)   | * Ideal para contagem única em larga escala |
+| * Permite ler e escrever dados exatos             | * Margem de erro estatística padrão (0.81%) |
++---------------------------------------------------+---------------------------------------------+
+```
 
-### 5.3. HyperLogLog (`unique_visitors:YYYY-MM-DD` - Cardinalidade Diária)
-Estrutura probabilística de contagem de acessos únicos. Permite contar milhões de acessos únicos com consumo máximo de **12KB** por chave diária e 99.19% de precisão de dados.
-* **Comando de Incremento (Visita)**: `PFADD unique_visitors:2026-07-21 "alice"`
-* **Comando de Consulta (Contagem)**: `PFCOUNT unique_visitors:2026-07-21`
+---
+
+### 5.1. Estruturas Comuns (Determinísticas)
+
+#### A. Hash (`cart:userId` - Carrinho de Compras Ativo)
+* **O que é**: Um mapa contendo múltiplos pares de chaves-valores armazenados sob uma única chave raiz do Redis.
+* **Propósito**: Salva os itens temporários no carrinho de cada usuário. Como preserva os IDs e quantidades exatas, é a estrutura certa para o checkout.
+* **Comandos CLI**:
+  * `HINCRBY cart:alice prod_headphone_05 1` (Adiciona/Incrementa 1 fone)
+  * `HGETALL cart:alice` (Retorna todos os itens do carrinho)
+  * `HDEL cart:alice prod_headphone_05` (Remove o fone do carrinho)
+
+#### B. Sorted Set (`leaderboard` - Ranking de Fidelidade)
+* **O que é**: Um conjunto de strings únicas onde cada elemento é associado a uma pontuação decimal (score). Os elementos são ordenados de forma decrescente ou crescente em memória de forma automática no momento da escrita.
+* **Propósito**: Gerencia o ranking do programa de fidelidade do Pulse Commerce. Ao final de cada compra, a aplicação soma os pontos do usuário de forma atômica e instantânea.
+* **Comandos CLI**:
+  * `ZINCRBY leaderboard 50 "alice"` (Soma 50 pontos para Alice)
+  * `ZREVRANGE leaderboard 0 2 WITHSCORES` (Lê os 3 primeiros colocados com suas pontuações)
+
+---
+
+### 5.2. Estrutura Probabilística (HyperLogLog)
+
+#### A. HyperLogLog (`unique_visitors:YYYY-MM-DD` - Visitantes Únicos Diários)
+* **O que é**: O HyperLogLog (HLL) é um algoritmo probabilístico projetado para estimar a cardinalidade (quantidade de elementos únicos) de um conjunto de dados gigante sem precisar armazenar fisicamente esses dados em memória.
+* **Por que é utilizado no Pulse Commerce?**:
+  Imagine um e-commerce com **10 milhões de visitantes únicos por dia**. Se usássemos uma estrutura comum como um `Set` ou `Sorted Set` para salvar cada ID de usuário visitante, o Redis precisaria salvar 10 milhões de strings. Isso consumiria cerca de **400MB de memória RAM por dia**!
+  Usando o **HyperLogLog**, o Redis não salva as strings. Ele aplica uma função de dispersão hash matemática para calcular a probabilidade de ocorrência de bits e estima o número de visitantes únicos de forma extremamente precisa (margem de erro padrão de apenas **0,81%**), consumindo no máximo **12KB** de memória RAM por dia!
+* **Benefícios**:
+  1. **Consumo de Memória Fixo**: Economia de mais de 99,99% de RAM para contagem de tráfego.
+  2. **Privacidade (Compliance)**: Como as strings de IDs dos usuários não ficam salvas fisicamente, a privacidade dos usuários é garantida por design (aderente à LGPD/GDPR).
+* **Comandos CLI**:
+  * `PFADD unique_visitors:2026-07-21 "alice"` (Registra a visita do usuário "alice" no dia)
+  * `PFCOUNT unique_visitors:2026-07-21` (Retorna a contagem estimada de visitantes únicos hoje)
 
 ---
 
@@ -397,3 +464,49 @@ ORDER BY score DESC
 ```cypher
 CALL gds.graph.drop('socialGraph')
 ```
+
+---
+
+## 🛠️ 8. Instruções de Instalação e Execução
+
+### Passo 1: Inicializar os Contêineres Docker
+Certifique-se de que o **Docker Desktop** está aberto e ativo. Em seguida, na pasta raiz do projeto, execute:
+```powershell
+docker-compose up -d
+```
+
+### Passo 2: Configurar o Arquivo `.env` (Nuvem ou Local)
+Crie um arquivo `.env` na raiz do projeto com as chaves de conexão. Se quiser rodar 100% conectado com os bancos da nuvem que criamos (Atlas, Upstash e AuraDB):
+```env
+MONGO_URL="mongodb+srv://alexandremarcelomarquesfilho_db_user:gcBiN60vBbNA5OSP@pokeleilao.cosxoos.mongodb.net/pulse_commerce?retryWrites=true&w=majority&appName=pokeleilao"
+REDIS_URL="rediss://default:gQAAAAAAAs7PAAIgcDFlNDJjNTFjNTViMTc0ODE1YmU5Y2NiOTlkMGU0MjY3Nw@precise-weevil-184015.upstash.io:6379"
+NEO4J_URL="neo4j+ssc://83b5adac.databases.neo4j.io"
+NEO4J_USER="neo4j"
+NEO4J_PASSWORD="R6V1E6to-KLsOvOqSiUiXCsyLR5vlMhfPJBNKYqYKCs"
+NODE_TLS_REJECT_UNAUTHORIZED="0"
+```
+
+### Passo 3: Instalar as Dependências do Servidor Node.js
+```powershell
+npm install
+```
+
+### Passo 4: Popular os Bancos de Dados (Semente)
+Rode o script para popular os bancos na nuvem com o catálogo e dados iniciais de grafos e índices:
+```powershell
+npm run seed
+```
+
+### Passo 5: Inicializar o Servidor Web e os Túneis
+1. **Servidor Principal (Loja)**:
+   ```powershell
+   npm start
+   ```
+2. **Túneis Web (Serveo)**:
+   ```powershell
+   node run_tunnels.js
+   ```
+3. **Painel Admin (Streamlit)**:
+   ```powershell
+   streamlit run app_streamlit.py
+   ```
