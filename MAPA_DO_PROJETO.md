@@ -5,8 +5,8 @@ Este documento serve como um mapa de auditoria para o professor. Ele aponta os a
 ---
 
 ## 🔗 Links de Acesso Online (Projeto Rodando na Web)
-* **🛍️ E-Commerce Principal (Express/Vis.js)**: [https://1be1bd77949438e3-200-131-207-134.serveousercontent.com](https://1be1bd77949438e3-200-131-207-134.serveousercontent.com)
-* **📊 Painel Streamlit (CRUD NoSQL & Autenticação)**: [https://369269170fcec78b-200-131-207-134.serveousercontent.com](https://369269170fcec78b-200-131-207-134.serveousercontent.com)
+* **🛍️ E-Commerce Principal (Express/Vis.js)**: [https://f7270a3f21bc5437-200-131-207-134.serveousercontent.com](https://f7270a3f21bc5437-200-131-207-134.serveousercontent.com)
+* **📊 Painel Streamlit (CRUD NoSQL & Autenticação)**: [https://b1cfca82fe592319-200-131-207-134.serveousercontent.com](https://b1cfca82fe592319-200-131-207-134.serveousercontent.com)
 
 ---
 
