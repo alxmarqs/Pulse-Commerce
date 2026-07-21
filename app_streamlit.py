@@ -11,18 +11,25 @@ st.set_page_config(page_title="Pulse Commerce - Streamlit Prototype", layout="wi
 st.title("⚡ Pulse Commerce - Protótipo NoSQL")
 st.markdown("Este protótipo em Streamlit (Python) conecta-se aos mesmos bancos NoSQL (MongoDB, Redis, Neo4j) da aplicação principal.")
 
+import os
+
 # --- DATABASE CONNECTION UTILITIES ---
 @st.cache_resource
 def get_mongo_client():
-    return MongoClient("mongodb://127.0.0.1:27017")
+    mongo_url = os.environ.get("MONGO_URL", os.environ.get("MONGO_URI", "mongodb://127.0.0.1:27017"))
+    return MongoClient(mongo_url)
 
 @st.cache_resource
 def get_redis_client():
-    return redis.Redis(host="127.0.0.1", port=6379, decode_responses=True)
+    redis_url = os.environ.get("REDIS_URL", "redis://127.0.0.1:6379")
+    return redis.Redis.from_url(redis_url, decode_responses=True)
 
 @st.cache_resource
 def get_neo4j_driver():
-    return GraphDatabase.driver("bolt://127.0.0.1:7687", auth=("neo4j", "pulsepassword"))
+    neo4j_url = os.environ.get("NEO4J_URL", "bolt://127.0.0.1:7687")
+    neo4j_user = os.environ.get("NEO4J_USER", "neo4j")
+    neo4j_password = os.environ.get("NEO4J_PASSWORD", "pulsepassword")
+    return GraphDatabase.driver(neo4j_url, auth=(neo4j_user, neo4j_password))
 
 try:
     mongo_client = get_mongo_client()
@@ -32,7 +39,7 @@ try:
     
     n4j_driver = get_neo4j_driver()
     
-    st.sidebar.success("✅ Bancos NoSQL Conectados (127.0.0.1)")
+    st.sidebar.success("✅ Bancos NoSQL Conectados")
 except Exception as e:
     st.sidebar.error(f"❌ Erro de conexão: {e}")
 
