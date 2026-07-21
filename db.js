@@ -1,3 +1,4 @@
+require('dotenv').config();
 const { MongoClient } = require('mongodb');
 const neo4j = require('neo4j-driver');
 const redis = require('redis');

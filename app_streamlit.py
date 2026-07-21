@@ -8,10 +8,18 @@ from neo4j import GraphDatabase
 # Configure page style
 st.set_page_config(page_title="Pulse Commerce - Streamlit Prototype", layout="wide", page_icon="⚡")
 
-st.title("⚡ Pulse Commerce - Protótipo NoSQL")
-st.markdown("Este protótipo em Streamlit (Python) conecta-se aos mesmos bancos NoSQL (MongoDB, Redis, Neo4j) da aplicação principal.")
-
 import os
+
+# Load .env file if it exists
+if os.path.exists(".env"):
+    with open(".env", encoding="utf-8") as f:
+        for line in f:
+            line_str = line.strip()
+            if line_str and not line_str.startswith("#"):
+                if "=" in line_str:
+                    key, val = line_str.split("=", 1)
+                    val = val.strip().strip('"').strip("'")
+                    os.environ[key] = val
 
 # --- DATABASE CONNECTION UTILITIES ---
 @st.cache_resource
