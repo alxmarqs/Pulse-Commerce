@@ -25,6 +25,8 @@ if os.path.exists(".env"):
 @st.cache_resource
 def get_mongo_client():
     mongo_url = os.environ.get("MONGO_URL", os.environ.get("MONGO_URI", "mongodb://127.0.0.1:27017"))
+    if "mongodb+srv://" in mongo_url:
+        return MongoClient(mongo_url, tlsAllowInvalidCertificates=True)
     return MongoClient(mongo_url)
 
 @st.cache_resource
