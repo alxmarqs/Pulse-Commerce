@@ -30,5 +30,5 @@ async function startTunnel(port, subdomain, name) {
 }
 
 // Initialize tunnels
-startTunnel(3000, 'pulse-store-alx', 'Store');
-startTunnel(8501, 'pulse-admin-alx', 'Admin');
+startTunnel(3000, 'pulse-store-marques', 'Store');
+startTunnel(8501, 'pulse-admin-marques', 'Admin');
