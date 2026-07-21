@@ -125,7 +125,7 @@ Armazena os registros estruturados de todas as ações que acontecem na platafor
   * **`type`**: Tipo de ação registrada (String: `"purchase"` ou `"user_registered"`). Usado para filtrar logs analíticos.
   * **`productId`**: ID do produto envolvido (String). Usado na agregação para calcular estatísticas de vendas do produto.
   * **`quantity`**: Quantidade adquirida (Integer). Usado para calcular o volume de vendas.
-  * **`price`**: Preço praticado no momento exato da compra (Float). Essencial para manter o histórico financeiro correto mesmo que o preço do produto mude no catálogo futuramente.
+  * **`price`**: Preço praticado no momento exato da compra (Float). Essencial para manter o histórico financeiro correct mesmo que o preço do produto mude no catálogo futuramente.
   * **`description`**: Texto formatado da ação (String). Exibido diretamente na timeline social.
 
 ---
@@ -387,6 +387,17 @@ Uma das maiores vantagens da persistência poliglota do Pulse Commerce é a divi
 * **Comandos CLI**:
   * `ZINCRBY leaderboard 50 "alice"` (Soma 50 pontos para Alice)
   * `ZREVRANGE leaderboard 0 2 WITHSCORES` (Lê os 3 primeiros colocados com suas pontuações)
+
+##### ⚖️ Análise de Engenharia: Por que usar ZSET (Sorted Set) e não um SET comum?
+No Redis, um **SET comum** e um **ZSET (Sorted Set)** armazenam coleções de valores únicos. No entanto, para a funcionalidade de Ranking de Fidelidade (Leaderboard), o uso de um ZSET é obrigatório e muito superior por questões de arquitetura e performance:
+1. **Ordenação Nativa vs. Ordenação na Aplicação**: 
+   Um `SET` comum é desordenado. Se usássemos um `SET` comum, a aplicação teria que ler todos os membros (`SMEMBERS`), consultar suas respectivas pontuações no banco documental, ordenar a lista inteira em memória usando código da aplicação (ex: Node.js ou Python) com complexidade de tempo de $O(N \log N)$ e, finalmente, retornar os primeiros colocados. Com o `ZSET`, o Redis gerencia a ordenação de forma nativa e em tempo real em memória principal, mantendo os dados indexados de forma decrescente.
+2. **Complexidade Algorítmica e Estrutura Interna (Skip List + Hash Map)**:
+   O `ZSET` é implementado internamente pelo Redis usando uma estrutura híbrida: um **Hash Map** (para acesso rápido de elementos em tempo $O(1)$) e uma **Skip List** (Lista de Salto, para ordenação e buscas de intervalos rápidas em tempo $O(\log N)$).
+   * Para ler os 3 primeiros colocados em um `ZSET` com `ZREVRANGE`, a complexidade de tempo é de apenas **$O(\log N + M)$** (onde $N$ é o total de usuários e $M$ é a quantidade solicitada, que é 3). Isso é virtualmente instantâneo, mesmo com milhões de usuários ativos.
+   * Em um `SET` comum, a leitura da lista inteira e a ordenação subsequente na aplicação escalariam linearmente com o número de usuários, gerando lentidão e alto consumo de banda de rede e CPU.
+3. **Escrita Atômica**:
+   O comando `ZINCRBY` realiza o incremento da pontuação e o reposicionamento do usuário no ranking de forma atômica em tempo $O(\log N)$, evitando condições de corrida (Race Conditions) em sistemas altamente concorrentes.
 
 ---
 
